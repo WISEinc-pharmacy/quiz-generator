@@ -1006,20 +1006,8 @@ h1{font-size:1.25rem;color:var(--c-pri);margin-bottom:8px}
 </style></head><body>
 <h1>効果試験</h1><p class="meta">実施日: ${today} | ワイズグループ</p>
 
-<!-- Login screen -->
-<div id="loginScreen" class="card" style="text-align:center;padding:48px 24px">
-  <div style="font-size:48px;margin-bottom:16px">&#128272;</div>
-  <p style="font-weight:700;font-size:1.1rem;margin-bottom:8px">Googleアカウントでログインしてください</p>
-  <p style="font-size:.875rem;color:#64748B;margin-bottom:24px">会社のGoogleアカウントでログインが必要です。<br>ログイン後に問題が表示されます。</p>
-  <button class="btn btn-pri" id="loginBtn" onclick="doLogin()">Googleでログイン</button>
-  <div id="loginStatus" style="margin-top:16px;font-size:.875rem"></div>
-</div>
-
-<!-- Quiz area (hidden until login) -->
-<div id="mainArea" style="display:none">
-  <div class="card" style="background:#f0fdf4;border-color:#16a34a">
-    <p style="font-size:.875rem"><span style="font-weight:700" id="loggedInUser"></span> でログイン中</p>
-  </div>
+<!-- Quiz area -->
+<div id="mainArea">
   <div class="card">
     <label style="font-weight:600;display:block;margin-bottom:8px;">氏名（必須）</label>
     <input type="text" id="staffName" class="name-input" placeholder="山田 太郎">
@@ -1038,40 +1026,9 @@ h1{font-size:1.25rem;color:var(--c-pri);margin-bottom:8px}
 var GAS_URL='${GAS_URL}';
 var QUIZ_ID='${quizId}';
 var QUIZ=${quizJson};
-var answers={};var submitted=false;var loggedInEmail='';
+var answers={};var submitted=false;
 
-function doLogin(){
-  document.getElementById('loginBtn').disabled=true;
-  document.getElementById('loginStatus').innerHTML='<span style="color:#2563EB">Googleログイン画面を開いています...</span>';
-  // Open GAS URL in new window to trigger Google login, then check auth
-  var authWin=window.open(GAS_URL+'?action=checkAuth','_blank','width=500,height=600');
-  // Poll for completion
-  var checkCount=0;
-  var timer=setInterval(function(){
-    checkCount++;
-    if(checkCount>120){clearInterval(timer);document.getElementById('loginStatus').innerHTML='<span style="color:#dc2626">タイムアウトしました。再度お試しください。</span>';document.getElementById('loginBtn').disabled=false;return;}
-    try{
-      // After login, try fetching auth status
-      fetch(GAS_URL+'?action=checkAuth').then(function(r){return r.json()}).then(function(d){
-        if(d.email){
-          clearInterval(timer);
-          loggedInEmail=d.email;
-          if(authWin&&!authWin.closed)authWin.close();
-          showQuiz();
-        }
-      }).catch(function(){});
-    }catch(e){}
-  },2000);
-}
-
-function showQuiz(){
-  document.getElementById('loginScreen').style.display='none';
-  document.getElementById('mainArea').style.display='block';
-  document.getElementById('loggedInUser').textContent=loggedInEmail;
-  initQuiz();
-}
-
-function initQuiz(){document.getElementById('quizArea').innerHTML=QUIZ.map(function(q,i){return '<div class="card qi" id="qi-'+i+'"><div class="q-num">Q'+(i+1)+' <span style="font-size:.7rem;color:#64748B">'+(q.section||'')+'</span></div><div class="q-cat">'+esc(q.category)+'</div><div class="q-text">'+esc(q.question)+'</div><ul class="choices">'+q.choices.map(function(c,ci){return '<li data-q="'+i+'" data-c="'+ci+'" onclick="pick('+i+','+ci+')">'+(ci+1)+'. '+esc(c)+'</li>'}).join('')+'</ul></div>'}).join('')}
+function init(){document.getElementById('quizArea').innerHTML=QUIZ.map(function(q,i){return '<div class="card qi" id="qi-'+i+'"><div class="q-num">Q'+(i+1)+' <span style="font-size:.7rem;color:#64748B">'+(q.section||'')+'</span></div><div class="q-cat">'+esc(q.category)+'</div><div class="q-text">'+esc(q.question)+'</div><ul class="choices">'+q.choices.map(function(c,ci){return '<li data-q="'+i+'" data-c="'+ci+'" onclick="pick('+i+','+ci+')">'+(ci+1)+'. '+esc(c)+'</li>'}).join('')+'</ul></div>'}).join('')}
 function pick(qi,ci){if(submitted)return;answers[qi]=ci+1;var lis=document.querySelectorAll('#qi-'+qi+' .choices li');for(var j=0;j<lis.length;j++){if(parseInt(lis[j].getAttribute('data-c'))===ci)lis[j].classList.add('sel');else lis[j].classList.remove('sel')}}
 function submitQuiz(){
   var name=document.getElementById('staffName').value.trim();
