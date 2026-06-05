@@ -376,15 +376,7 @@ let pdfFiles = [];
 function savePool() { localStorage.setItem('quiz_pool', JSON.stringify(questionPool)); }
 
 // ====== API Key ======
-// API Key: stored in localStorage, set once by admin
-function getApiKey() {
-  var key = localStorage.getItem('anthropic_api_key');
-  if (!key) {
-    key = prompt('Anthropic API Keyを入力してください（初回のみ）');
-    if (key) localStorage.setItem('anthropic_api_key', key);
-  }
-  return key;
-}
+// Anthropic API is called via GAS proxy (API key stored in GAS Script Properties)
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbwAIuyNvnSrMV1O41TPVeXx24KHmnWHluThzSIc8Kw0tY_GKiYwgQBLQ02u_on7KWSdZQ/exec';
 
@@ -720,15 +712,14 @@ ${text.substring(0, 80000)}`;
   showStatus('genStatus', `「${theme}」の問題を生成しています...`, 'loading');
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch(GAS_URL, {
       method: 'POST',
-      headers: { 'Content-Type':'application/json', 'x-api-key':getApiKey(), 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
-      body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:8192, messages:[{role:'user',content:prompt}] })
+      body: JSON.stringify({ action: 'generateQuiz', prompt: prompt })
     });
-    if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.error?.message || `API error: ${res.status}`); }
-
     const data = await res.json();
-    const jsonMatch = data.content[0].text.match(/\[[\s\S]*\]/);
+    if (!data.success) throw new Error(data.error || 'GAS API error');
+
+    const jsonMatch = data.content.match(/\[[\s\S]*\]/);
     if (!jsonMatch) throw new Error('JSONが取得できませんでした');
 
     const questions = JSON.parse(jsonMatch[0]).map((q, i) => ({
