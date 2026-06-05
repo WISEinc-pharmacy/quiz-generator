@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>効果試験ジェネレーター | ワイズグループ</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs" type="module"></script>
+  <style>
+    :root {
+      --color-primary:#2563EB;--color-secondary:#3B82F6;--color-accent:#06b6d4;
+      --color-bg:#f8fafc;--color-bg-alt:#F0F4FF;--color-surface:#ffffff;
+      --color-text:#1E293B;--color-text-sub:#64748B;--color-border:#E2E8F0;
+      --color-success:#16a34a;--color-warning:#f59e0b;--color-danger:#dc2626;
+      --font-family:'Hiragino Kaku Gothic ProN','Yu Gothic','Noto Sans JP',sans-serif;
+      --text-xs:.75rem;--text-sm:.875rem;--text-base:1rem;--text-lg:1.125rem;--text-xl:1.25rem;--text-2xl:1.5rem;--text-3xl:1.875rem;
+      --space-2:8px;--space-3:12px;--space-4:16px;--space-6:24px;--space-8:32px;--space-card:24px;
+      --radius-sm:6px;--radius-md:10px;--radius-lg:16px;--radius-full:9999px;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:var(--font-family);background:var(--color-bg);color:var(--color-text);line-height:1.7;min-height:100vh}
+    :focus-visible{outline:3px solid var(--color-primary);outline-offset:2px;border-radius:4px}
+
+    .header{background:var(--color-surface);border-bottom:1px solid var(--color-border);padding:var(--space-4) var(--space-6);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:var(--space-3)}
+    .header h1{font-size:var(--text-xl);font-weight:700;color:var(--color-primary)}
+    .tabs{display:flex;gap:4px;padding:var(--space-4) var(--space-6) 0;background:var(--color-surface)}
+    .tab{padding:var(--space-3) var(--space-6);border:none;background:transparent;font-size:var(--text-sm);font-weight:600;color:var(--color-text-sub);cursor:pointer;border-bottom:3px solid transparent;transition:all .2s ease;min-height:48px}
+    .tab:hover{color:var(--color-primary)}
+    .tab.active{color:var(--color-primary);border-bottom-color:var(--color-primary)}
+    .main{max-width:1200px;margin:0 auto;padding:var(--space-6)}
+    .tab-content{display:none}.tab-content.active{display:block}
+
+    .card{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);box-shadow:0 1px 3px rgba(0,0,0,.06);padding:var(--space-card);margin-bottom:var(--space-6)}
+    .card h2{font-size:var(--text-lg);font-weight:700;margin-bottom:var(--space-4)}
+    .card h3{font-size:var(--text-base);font-weight:600;margin-bottom:var(--space-3)}
+    label{display:block;font-size:var(--text-sm);font-weight:600;margin-bottom:var(--space-2)}
+    input[type="text"],input[type="password"],input[type="number"],select,textarea{width:100%;padding:var(--space-3);border:1px solid var(--color-border);border-radius:var(--radius-sm);font-size:var(--text-base);font-family:var(--font-family);color:var(--color-text);background:var(--color-surface);min-width:0;transition:border-color .2s ease}
+    input:focus,select:focus,textarea:focus{border-color:var(--color-primary)}
+    .form-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:var(--space-4);margin-bottom:var(--space-4)}
+    .form-group{margin-bottom:var(--space-4)}
+    textarea{resize:vertical;min-height:80px}
+
+    .drop-zone{border:2px dashed var(--color-border);border-radius:var(--radius-lg);padding:var(--space-6);text-align:center;cursor:pointer;transition:all .2s ease;background:var(--color-bg)}
+    .drop-zone:hover,.drop-zone.dragover{border-color:var(--color-primary);background:var(--color-bg-alt)}
+    .drop-zone.has-file{border-color:var(--color-success);background:#f0fdf4}
+    .drop-zone-icon{font-size:40px;margin-bottom:var(--space-2)}
+    .drop-zone-text{font-size:var(--text-sm);color:var(--color-text-sub)}
+    .drop-zone-file{font-size:var(--text-sm);color:var(--color-success);font-weight:600;margin-top:var(--space-2)}
+
+    .btn{display:inline-flex;align-items:center;gap:var(--space-2);padding:12px 28px;border:none;border-radius:var(--radius-md);font-size:var(--text-sm);font-weight:700;font-family:var(--font-family);cursor:pointer;transition:all .2s ease;min-height:48px;min-width:48px}
+    .btn-primary{background:var(--color-primary);color:#fff;box-shadow:0 4px 14px rgba(37,99,235,.35)}
+    .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 6px 20px rgba(37,99,235,.45)}
+    .btn-primary:disabled{opacity:.5;cursor:not-allowed}
+    .btn-secondary{background:transparent;color:var(--color-primary);border:2px solid var(--color-primary)}
+    .btn-secondary:hover{background:var(--color-primary);color:#fff}
+    .btn-success{background:var(--color-success);color:#fff}
+    .btn-danger{background:var(--color-danger);color:#fff}
+    .btn-sm{padding:8px 16px;font-size:var(--text-xs);min-height:36px}
+
+    .chip-group{display:flex;flex-wrap:wrap;gap:var(--space-2);margin-bottom:var(--space-4)}
+    .chip{padding:8px 16px;border:2px solid var(--color-border);border-radius:var(--radius-full);font-size:var(--text-sm);font-weight:500;cursor:pointer;transition:all .2s ease;background:var(--color-surface);color:var(--color-text);min-height:48px;display:flex;align-items:center}
+    .chip:hover{border-color:var(--color-primary)}
+    .chip.selected{background:var(--color-primary);color:#fff;border-color:var(--color-primary)}
+
+    .progress-bar{width:100%;height:8px;background:var(--color-border);border-radius:var(--radius-full);overflow:hidden;margin:var(--space-3) 0}
+    .progress-fill{height:100%;background:var(--color-primary);border-radius:var(--radius-full);transition:width .3s ease;width:0%}
+
+    .status{padding:var(--space-4);border-radius:var(--radius-md);margin:var(--space-4) 0;font-size:var(--text-sm)}
+    .status-info{background:var(--color-bg-alt);color:var(--color-primary)}
+    .status-success{background:#f0fdf4;color:var(--color-success)}
+    .status-error{background:#fef2f2;color:var(--color-danger)}
+    .status-loading{background:var(--color-bg-alt);color:var(--color-primary);display:flex;align-items:center;gap:var(--space-3)}
+    .spinner{width:20px;height:20px;border:3px solid var(--color-border);border-top-color:var(--color-primary);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    .toast{position:fixed;bottom:var(--space-6);right:var(--space-6);padding:var(--space-3) var(--space-6);background:var(--color-text);color:#fff;border-radius:var(--radius-md);font-size:var(--text-sm);z-index:1000;animation:slideUp .3s ease}
+    @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+    /* Pool cards */
+    .pool-card{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-4);margin-bottom:var(--space-3);display:flex;align-items:center;justify-content:space-between;gap:var(--space-4);flex-wrap:wrap}
+    .pool-card-info{flex:1;min-width:200px}
+    .pool-card-theme{font-weight:700;font-size:var(--text-base)}
+    .pool-card-count{font-size:var(--text-sm);color:var(--color-text-sub)}
+    .pool-card-actions{display:flex;gap:var(--space-2);align-items:center}
+
+    /* Build sliders */
+    .build-row{display:flex;align-items:center;gap:var(--space-4);padding:var(--space-3) 0;border-bottom:1px solid var(--color-border);flex-wrap:wrap}
+    .build-row:last-child{border-bottom:none}
+    .build-theme{font-weight:600;min-width:160px}
+    .build-avail{font-size:var(--text-sm);color:var(--color-text-sub);min-width:80px}
+    .build-input{width:80px;text-align:center;min-width:0}
+    .build-total{font-size:var(--text-lg);font-weight:700;color:var(--color-primary);text-align:center;padding:var(--space-4) 0}
+
+    .result-wrapper{overflow-x:auto;margin-top:var(--space-4)}
+    .result-table{width:100%;border-collapse:collapse;font-size:var(--text-sm);min-width:0}
+    .result-table th,.result-table td{border:1px solid var(--color-border);padding:var(--space-3);text-align:left;vertical-align:top}
+    .result-table th{background:var(--color-bg-alt);font-weight:600;white-space:nowrap}
+    .result-table tr:hover{background:var(--color-bg)}
+
+    .hidden{display:none !important}
+    @media(max-width:768px){.header{padding:var(--space-3)}.main{padding:var(--space-3)}.card{padding:var(--space-4)}.form-row{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <h1>効果試験ジェネレーター</h1>
+  <span style="font-size:var(--text-xs);color:var(--color-text-sub)">管理者用</span>
+</header>
+
+<div class="tabs">
+  <button class="tab active" data-tab="pool" onclick="switchTab('pool')">1. 問題プール</button>
+  <button class="tab" data-tab="build" onclick="switchTab('build')">2. 問題集作成</button>
+  <button class="tab" data-tab="grade" onclick="switchTab('grade')">3. 採点</button>
+  <button class="tab" data-tab="guide" onclick="switchTab('guide')">使い方</button>
+</div>
+
+<main class="main">
+
+  <!-- ===== Tab 1: 問題プール ===== -->
+  <div id="tab-pool" class="tab-content active">
+
+    <!-- Source input -->
+    <div class="card">
+      <h2>テーマを選んでPDFを読み込む</h2>
+
+      <div class="form-group">
+        <label>テーマ</label>
+        <div class="chip-group" id="themeChips">
+          <button class="chip selected" data-theme="調剤報酬">調剤報酬</button>
+          <button class="chip" data-theme="会社理念・方針">会社理念・方針</button>
+          <button class="chip" data-theme="アカデミック">アカデミック</button>
+          <button class="chip" data-theme="在宅医療">在宅医療</button>
+          <button class="chip" data-theme="経営・事業戦略">経営・事業戦略</button>
+          <button class="chip" data-theme="危機管理">危機管理</button>
+        </div>
+        <div style="display:flex;gap:var(--space-2);align-items:center">
+          <input type="text" id="customTheme" placeholder="カスタムテーマを入力..." style="max-width:300px">
+          <button class="btn btn-sm btn-secondary" onclick="addCustomTheme()">追加</button>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top:var(--space-4)">
+        <label>ファイル読み込み（複数OK）</label>
+        <div id="dropZone" class="drop-zone" onclick="document.getElementById('fileInput').click()">
+          <div class="drop-zone-icon">&#128196;</div>
+          <div class="drop-zone-text">ファイルをドラッグ&ドロップ / クリックで選択<br><span style="font-size:var(--text-xs)">PDF / テキスト / CSV / Excel 対応・複数可</span></div>
+          <div id="fileList" class="drop-zone-file hidden"></div>
+          <input type="file" id="fileInput" accept=".pdf,.txt,.csv,.xlsx,.xls" multiple style="display:none">
+        </div>
+        <div class="form-row" style="margin-top:var(--space-3)">
+          <div><label for="pageFrom">ページ範囲（PDF用・開始）</label><input type="number" id="pageFrom" min="1" value="1"></div>
+          <div><label for="pageTo">ページ範囲（PDF用・終了）</label><input type="number" id="pageTo" min="1" placeholder="全ページ"></div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Google スプレッドシート / ドキュメントURL</label>
+        <div style="display:flex;gap:var(--space-2);align-items:center">
+          <input type="text" id="sheetsUrl" placeholder="https://docs.google.com/spreadsheets/d/..." style="flex:1;min-width:0">
+          <button class="btn btn-sm btn-secondary" onclick="fetchFromUrl()">読み込む</button>
+        </div>
+        <div style="background:#fef2f2;border:1px solid var(--color-danger);border-radius:var(--radius-sm);padding:var(--space-3);margin-top:var(--space-2)">
+          <p style="font-size:var(--text-xs);color:var(--color-danger);font-weight:700;margin-bottom:4px">
+            スプレッドシートの共有設定を「リンクを知っている全員に閲覧権限」にしてください
+          </p>
+          <p style="font-size:var(--text-xs);color:var(--color-text-sub)">
+            理由: このツールはローカルHTMLファイルのため、Googleログイン認証（OAuth）をブラウザ上で行えません。<br>
+            OAuthにはGoogle Cloud ConsoleでのクライアントID作成・リダイレクトURI登録が必要で、年2回の利用には構成が重すぎるためです。<br>
+            共有設定を「全員に閲覧権限」にすれば、APIキーだけで内容を取得できます。
+          </p>
+        </div>
+        <div id="urlStatus" class="hidden"></div>
+      </div>
+
+      <div id="pdfStatus" class="hidden"></div>
+      <div id="pdfProgress" class="progress-bar hidden"><div id="pdfProgressFill" class="progress-fill"></div></div>
+
+      <div class="form-group">
+        <label>抽出テキスト（直接入力・編集可）</label>
+        <textarea id="extractedText" rows="5" placeholder="PDFから抽出したテキスト、または直接テキストを貼り付け"></textarea>
+      </div>
+
+      <div class="form-row">
+        <div><label for="numQuestions">生成する問題数</label>
+          <select id="numQuestions"><option value="5">5問</option><option value="10" selected>10問</option><option value="15">15問</option><option value="20">20問</option><option value="30">30問</option></select>
+        </div>
+        <div><label for="numChoices">選択肢数</label>
+          <select id="numChoices"><option value="3">3択</option><option value="4" selected>4択</option><option value="5">5択</option><option value="6">6択</option></select>
+        </div>
+        <div><label for="difficulty">難易度</label>
+          <select id="difficulty"><option value="basic">基礎</option><option value="standard" selected>標準</option><option value="advanced">応用</option></select>
+        </div>
+        <div><label for="targetRole">対象</label>
+          <select id="targetRole"><option value="pharmacist" selected>薬剤師</option><option value="general">一般職</option><option value="all">全職種</option></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="customPrompt">追加指示（任意）</label>
+        <textarea id="customPrompt" rows="2" placeholder="例: 地域支援体制加算を多めに"></textarea>
+      </div>
+
+      <div style="text-align:center;display:flex;justify-content:center;gap:var(--space-3);flex-wrap:wrap">
+        <button id="generateBtn" class="btn btn-primary" onclick="generateToPool()" disabled>AIで問題を生成</button>
+        <button id="importBtn" class="btn btn-success" onclick="importToPool()" disabled>既存問題をそのままインポート</button>
+      </div>
+      <p style="font-size:var(--text-xs);color:var(--color-text-sub);text-align:center;margin-top:var(--space-2)">
+        「AIで問題を生成」= テキストから新しい問題を作成（API使用）<br>
+        「既存問題をそのままインポート」= スプシからコピペした問題をそのままプールに追加（API不使用・無料）
+      </p>
+      <div id="genStatus" class="hidden"></div>
+    </div>
+
+    <!-- Pool summary -->
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:var(--space-3);margin-bottom:var(--space-4)">
+        <h2 style="margin-bottom:0">問題プール</h2>
+        <div style="display:flex;gap:var(--space-2)">
+          <button class="btn btn-sm btn-secondary" onclick="exportPool()">プールをJSON保存</button>
+          <button class="btn btn-sm btn-secondary" onclick="document.getElementById('importPoolInput').click()">JSONから復元</button>
+          <input type="file" id="importPoolInput" accept=".json" style="display:none">
+        </div>
+      </div>
+      <div id="poolEmpty" style="text-align:center;padding:var(--space-6);color:var(--color-text-sub);font-size:var(--text-sm)">
+        まだ問題がありません。上のフォームからテーマ別に問題を生成してください。
+      </div>
+      <div id="poolCards"></div>
+      <div id="poolTotal" class="hidden" style="text-align:right;font-weight:700;color:var(--color-primary);padding-top:var(--space-3)"></div>
+    </div>
+
+  </div>
+
+  <!-- ===== Tab 2: 問題集作成 ===== -->
+  <div id="tab-build" class="tab-content">
+
+    <div class="card">
+      <h2>テーマ別の出題数を決める</h2>
+      <p style="font-size:var(--text-sm);color:var(--color-text-sub);margin-bottom:var(--space-3)">
+        各テーマから何問出題するか指定してください。問題はシャッフルされます。
+      </p>
+      <div style="background:#fef2f2;border:1px solid var(--color-danger);border-radius:var(--radius-sm);padding:var(--space-3);margin-bottom:var(--space-4)">
+        <p style="font-size:var(--text-sm);color:var(--color-danger);font-weight:700;margin-bottom:4px">
+          全40問で行う。正答率65%（26問）で合格。
+        </p>
+        <p style="font-size:var(--text-xs);color:var(--color-danger)">
+          ※ 薬剤師: 共通20問 + アカデミック20問 = 計40問<br>
+          ※ 一般職: 共通から40問<br>
+          ※ 共通・職能のいずれかが50%（20問中10問）を下回ると不合格
+        </p>
+      </div>
+      <div class="form-group">
+        <label>職能テーマ（チェックしたテーマが「職能」、それ以外は「共通」になります）</label>
+        <div id="roleChips" class="chip-group"></div>
+      </div>
+      <div id="buildRows"></div>
+      <div id="buildTotal" class="build-total"></div>
+      <div id="buildEmpty" style="text-align:center;padding:var(--space-6);color:var(--color-text-sub);font-size:var(--text-sm)">
+        問題プールが空です。まず「問題プール」タブで問題を生成してください。
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-bottom:var(--space-6)">
+      <button id="buildBtn" class="btn btn-primary" onclick="buildQuiz()" disabled>問題集を作成する</button>
+    </div>
+
+    <div id="finalCard" class="card hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:var(--space-3);margin-bottom:var(--space-4)">
+        <h2 style="margin-bottom:0">完成した問題集</h2>
+        <div style="display:flex;gap:var(--space-2);flex-wrap:wrap">
+          <button class="btn btn-sm btn-primary" onclick="downloadTestHtml()">配布用HTMLダウンロード</button>
+          <button class="btn btn-sm btn-secondary" onclick="copyForSpreadsheet()">スプシ用コピー</button>
+          <button class="btn btn-sm btn-secondary" onclick="copyAsJSON()">JSONコピー</button>
+        </div>
+      </div>
+      <div id="finalTable" class="result-wrapper"></div>
+    </div>
+  </div>
+
+  <!-- ===== Tab 3: 採点 ===== -->
+  <div id="tab-grade" class="tab-content">
+
+    <div class="card">
+      <h2>回答データを読み込む</h2>
+      <p style="font-size:var(--text-sm);color:var(--color-text-sub);margin-bottom:var(--space-4)">
+        スタッフから届いた回答メールのJSONを貼り付けるか、ファイルを読み込んでください。<br>
+        問題集の正解データと自動照合して採点します。
+      </p>
+      <div class="form-group">
+        <label>回答JSONを貼り付け</label>
+        <textarea id="gradeJsonInput" rows="6" placeholder='{"quizId":"...","name":"山田太郎","answers":{...}}'></textarea>
+      </div>
+      <div style="display:flex;gap:var(--space-2);flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="gradeFromInput()">採点する</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('gradeFileInput').click()">JSONファイルから読み込む</button>
+        <input type="file" id="gradeFileInput" accept=".json,.txt" style="display:none">
+      </div>
+      <div id="gradeStatus" class="hidden"></div>
+    </div>
+
+    <!-- Saved quizzes list -->
+    <div class="card">
+      <h2>保存済み問題集</h2>
+      <p style="font-size:var(--text-sm);color:var(--color-text-sub);margin-bottom:var(--space-4)">
+        問題集作成時に自動保存されます。回答JSONの問題集IDと照合して採点します。
+      </p>
+      <div id="savedQuizList"></div>
+    </div>
+
+    <!-- Grade result -->
+    <div id="gradeResultCard" class="card hidden">
+      <h2>採点結果</h2>
+      <div id="gradeResultContent"></div>
+      <div style="display:flex;gap:var(--space-2);flex-wrap:wrap;margin-top:var(--space-4)">
+        <button class="btn btn-sm btn-secondary" onclick="copyGradeResult()">結果をコピー</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Tab 4: 使い方 ===== -->
+  <div id="tab-guide" class="tab-content">
+    <div class="card">
+      <h2>全体の流れ</h2>
+      <div style="background:var(--color-bg-alt);border-radius:var(--radius-md);padding:var(--space-4);margin-bottom:var(--space-4)">
+        <ol style="font-size:var(--text-sm);padding-left:var(--space-6);line-height:2.2">
+          <li><strong>問題プール</strong>タブで、テーマごとにPDFを読み込み問題を生成（繰り返し可）</li>
+          <li><strong>問題集作成</strong>タブで、テーマごとの出題数を指定 → シャッフルして問題集を作成</li>
+          <li><strong>配布用HTMLダウンロード</strong>でスタッフに配布（APIキー不要で回答・採点可）</li>
+          <li>スタッフがHTMLで回答 → 採点 →「結果をコピー」→ スプシに貼り付けて提出</li>
+        </ol>
+      </div>
+    </div>
+    <div class="card">
+      <h2>問題プールタブ</h2>
+      <div style="font-size:var(--text-sm)">
+        <p style="margin-bottom:var(--space-3)"><strong>テーマ</strong>を選択してからPDFを読み込み、問題を生成します。同じテーマで何度でも追加OK。</p>
+        <ul style="padding-left:var(--space-6);line-height:2">
+          <li><strong>複数PDF対応</strong> — ファイル選択時に複数選択するとテキストが結合されます</li>
+          <li><strong>ページ範囲</strong> — 重いPDFは必要なページだけ抽出できます</li>
+          <li><strong>プールのJSON保存/復元</strong> — 作った問題プールをファイルに保存して、次回復元できます</li>
+          <li><strong>テーマ例</strong>: 調剤報酬（改定通知PDF）、会社理念・方針（社内資料）、アカデミック（学術論文・教材）</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card">
+      <h2>問題集作成タブ</h2>
+      <div style="font-size:var(--text-sm)">
+        <p style="margin-bottom:var(--space-3)">プールに貯めた問題から、テーマごとに出題数を指定して1回分の問題集を組み立てます。</p>
+        <ul style="padding-left:var(--space-6);line-height:2">
+          <li>問題は自動でシャッフルされます（テーマがバラバラに混ざる）</li>
+          <li><strong>配布用HTML</strong> — スタッフに渡すファイル。APIキー不要。名前入力→回答→採点→結果コピー</li>
+          <li><strong>スプシ用コピー</strong> — タブ区切り。Google スプレッドシートに直接貼り付け</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card">
+      <h2>料金について</h2>
+      <p style="font-size:var(--text-sm)">
+        問題生成時にAnthropic API（Claude）を使用します（10問あたり約$0.01〜0.02）。<br>
+        スタッフが配布用HTMLで回答する際にはAPI費用はかかりません。
+      </p>
+    </div>
+  </div>
+
+</main>
+
+<script type="module">
+  const pdfjsLib = await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs';
+  window.pdfjsLib = pdfjsLib;
+</script>
+
+<script>
+// ====== State ======
+let questionPool = JSON.parse(localStorage.getItem('quiz_pool') || '{}');
+let finalQuiz = null;
+let pdfFiles = [];
+function savePool() { localStorage.setItem('quiz_pool', JSON.stringify(questionPool)); }
+
+// ====== API Key ======
+// API Key: stored in localStorage, set once by admin
+function getApiKey() {
+  var key = localStorage.getItem('anthropic_api_key');
+  if (!key) {
+    key = prompt('Anthropic API Keyを入力してください（初回のみ）');
+    if (key) localStorage.setItem('anthropic_api_key', key);
+  }
+  return key;
+}
+
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwAIuyNvnSrMV1O41TPVeXx24KHmnWHluThzSIc8Kw0tY_GKiYwgQBLQ02u_on7KWSdZQ/exec';
+
+// ====== Tabs ======
+function switchTab(t) {
+  document.querySelectorAll('.tab').forEach(el => el.classList.toggle('active', el.dataset.tab === t));
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.toggle('active', el.id === `tab-${t}`));
+  if (t === 'build') renderBuildTab();
+}
+window.switchTab = switchTab;
+
+// ====== Theme chips (single select) ======
+document.getElementById('themeChips').addEventListener('click', e => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  document.querySelectorAll('#themeChips .chip').forEach(c => c.classList.remove('selected'));
+  chip.classList.add('selected');
+});
+
+function getSelectedTheme() {
+  const sel = document.querySelector('#themeChips .chip.selected');
+  return sel ? sel.dataset.theme : null;
+}
+
+function addCustomTheme() {
+  const input = document.getElementById('customTheme');
+  const name = input.value.trim();
+  if (!name) return;
+  // Check if already exists
+  const existing = document.querySelector(`#themeChips .chip[data-theme="${name}"]`);
+  if (existing) {
+    document.querySelectorAll('#themeChips .chip').forEach(c => c.classList.remove('selected'));
+    existing.classList.add('selected');
+    input.value = '';
+    return;
+  }
+  const chip = document.createElement('button');
+  chip.className = 'chip selected';
+  chip.dataset.theme = name;
+  chip.textContent = name;
+  document.querySelectorAll('#themeChips .chip').forEach(c => c.classList.remove('selected'));
+  document.getElementById('themeChips').appendChild(chip);
+  input.value = '';
+}
+window.addCustomTheme = addCustomTheme;
+
+// ====== Drop zone (multiple files, multi-format) ======
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+let loadedFiles = [];
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('dragover');
+  if (e.dataTransfer.files.length) handleFiles([...e.dataTransfer.files]);
+});
+fileInput.addEventListener('change', e => { if (e.target.files.length) handleFiles([...e.target.files]); });
+
+async function handleFiles(files) {
+  const supported = files.filter(f => /\.(pdf|txt|csv|xlsx?)$/i.test(f.name) || f.type === 'application/pdf' || f.type === 'text/plain' || f.type === 'text/csv');
+  if (!supported.length) { showStatus('pdfStatus', '対応ファイル: PDF, TXT, CSV, Excel', 'error'); return; }
+  loadedFiles = supported;
+  dropZone.classList.add('has-file');
+  const fl = document.getElementById('fileList');
+  fl.textContent = supported.map(f => `${f.name} (${(f.size/1024/1024).toFixed(1)}MB)`).join(', ');
+  fl.classList.remove('hidden');
+  await extractAllFiles();
+}
+
+async function extractAllFiles() {
+  const progBar = document.getElementById('pdfProgress');
+  const progFill = document.getElementById('pdfProgressFill');
+  progBar.classList.remove('hidden');
+  showStatus('pdfStatus', 'ファイルを読み込んでいます...', 'loading');
+
+  try {
+    let allText = '';
+    for (let fi = 0; fi < loadedFiles.length; fi++) {
+      const file = loadedFiles[fi];
+      const ext = file.name.split('.').pop().toLowerCase();
+      allText += `\n=== ${file.name} ===\n`;
+
+      if (ext === 'pdf' || file.type === 'application/pdf') {
+        // PDF
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const totalPages = pdf.numPages;
+        if (loadedFiles.length === 1) document.getElementById('pageTo').placeholder = totalPages;
+        const pageFrom = loadedFiles.length === 1 ? (parseInt(document.getElementById('pageFrom').value) || 1) : 1;
+        const pageTo = loadedFiles.length === 1 ? Math.min(parseInt(document.getElementById('pageTo').value) || totalPages, totalPages) : totalPages;
+        for (let i = pageFrom; i <= pageTo; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          allText += content.items.map(item => item.str).join(' ') + '\n';
+          progFill.style.width = `${((fi + (i - pageFrom + 1) / (pageTo - pageFrom + 1)) / loadedFiles.length) * 100}%`;
+        }
+      } else if (ext === 'txt' || ext === 'csv' || file.type === 'text/plain' || file.type === 'text/csv') {
+        // Text / CSV
+        allText += await file.text() + '\n';
+        progFill.style.width = `${((fi + 1) / loadedFiles.length) * 100}%`;
+      } else if (ext === 'xlsx' || ext === 'xls') {
+        // Excel — テキストとして読めないので案内
+        allText += '【Excelファイル】ブラウザでは直接読み込めません。スプレッドシートにインポートしてからコピペするか、CSV形式で保存してください。\n';
+        progFill.style.width = `${((fi + 1) / loadedFiles.length) * 100}%`;
+      }
+    }
+    document.getElementById('extractedText').value = allText.trim();
+    showStatus('pdfStatus', `${loadedFiles.length}ファイルを読み込みました`, 'success');
+    updateGenerateBtn();
+  } catch (err) {
+    showStatus('pdfStatus', `読み込みエラー: ${err.message}`, 'error');
+  }
+}
+
+document.getElementById('pageFrom').addEventListener('change', () => { if (loadedFiles.length === 1) extractAllFiles(); });
+document.getElementById('pageTo').addEventListener('change', () => { if (loadedFiles.length === 1) extractAllFiles(); });
+
+// ====== Google Sheets URL fetch ======
+async function fetchFromUrl() {
+  const url = document.getElementById('sheetsUrl').value.trim();
+  if (!url) { showToast('URLを入力してください'); return; }
+
+  showStatus('urlStatus', 'スプレッドシートを読み込んでいます...', 'loading');
+
+  try {
+    // Extract spreadsheet ID and gid from URL
+    const idMatch = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+    if (!idMatch) throw new Error('Google スプレッドシートのURLではありません');
+    const spreadsheetId = idMatch[1];
+    const gidMatch = url.match(/gid=(\d+)/);
+    const gid = gidMatch ? gidMatch[1] : '0';
+
+    // Use Google Apps Script proxy to avoid CORS issues with local HTML files
+    // If proxy is not set up yet, fall back to direct fetch (works from hosted pages)
+    const csvExportUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${gid}`;
+    const gasProxyUrl = `https://script.google.com/macros/s/AKfycbwPlaceholder/exec`;
+
+    let csv = '';
+    // Try direct fetch first (works from hosted pages, not from file://)
+    try {
+      const directRes = await fetch(csvExportUrl);
+      if (directRes.ok) {
+        csv = await directRes.text();
+      }
+    } catch (e) {
+      // CORS blocked — expected from file:// origin
+    }
+
+    // If direct fetch failed, try GAS proxy
+    if (!csv) {
+      const proxyUrl = localStorage.getItem('gas_proxy_url');
+      if (proxyUrl) {
+        try {
+          const proxyRes = await fetch(`${proxyUrl}?url=${encodeURIComponent(csvExportUrl)}`);
+          if (proxyRes.ok) csv = await proxyRes.text();
+        } catch (e) {}
+      }
+    }
+
+    // If still no data, offer copy-paste fallback
+    if (!csv || csv.includes('<!DOCTYPE html>')) {
+      throw new Error('ローカルHTMLからはCORS制約でスプシを直接読み込めません。\\n\\n代わりに: スプシを開いて Ctrl+A → Ctrl+C → 下のテキスト欄に貼り付けてください。');
+    }
+
+    // Append to extracted text
+    const current = document.getElementById('extractedText').value;
+    document.getElementById('extractedText').value = (current ? current + '\n\n' : '') + `=== Google Sheets ===\n${csv}`;
+    showStatus('urlStatus', 'スプレッドシートを読み込みました', 'success');
+    updateGenerateBtn();
+  } catch (err) {
+    showStatus('urlStatus', err.message, 'error');
+  }
+}
+window.fetchFromUrl = fetchFromUrl;
+
+// ====== Generate to Pool ======
+function updateGenerateBtn() {
+  const hasText = !!document.getElementById('extractedText').value.trim();
+  document.getElementById('generateBtn').disabled = !hasText;
+  document.getElementById('importBtn').disabled = !hasText;
+}
+document.getElementById('extractedText').addEventListener('input', updateGenerateBtn);
+updateGenerateBtn();
+
+// ====== Import existing questions (no API) ======
+function importToPool() {
+  const theme = getSelectedTheme();
+  if (!theme) { showToast('テーマを選択してください'); return; }
+
+  const text = document.getElementById('extractedText').value.trim();
+  if (!text) { showToast('テキストを入力してください'); return; }
+
+  const questions = parseExistingQuestions(text, theme);
+  if (!questions.length) {
+    showStatus('genStatus', 'インポートエラー: 問題を検出できませんでした。\nスプシの問題部分を選択してコピペしてください（正解番号 / 問題文 / 選択肢1 / 選択肢2 ...の行）', 'error');
+    return;
+  }
+
+  if (!questionPool[theme]) questionPool[theme] = [];
+  questionPool[theme].push(...questions);
+  savePool();
+  renderPool();
+  showStatus('genStatus', `「${theme}」に${questions.length}問をインポートしました（プール合計: ${questionPool[theme].length}問）`, 'success');
+}
+window.importToPool = importToPool;
+
+function parseExistingQuestions(text, theme) {
+  const questions = [];
+  const lines = text.split('\n');
+
+  for (const line of lines) {
+    let cells = parseLine(line);
+    if (cells.length < 3) continue;
+
+    const firstCell = cells[0].trim();
+    const answerNum = parseInt(firstCell);
+
+    if (answerNum >= 1 && answerNum <= 10 && cells.length >= 3) {
+      const questionText = cells[1].trim();
+      // Skip header rows, separator rows, metadata
+      if (!questionText || /^(氏名|所属|設問|正答番号|:-)/i.test(questionText)) continue;
+      if (questionText.length < 5) continue;
+
+      const choices = [];
+      for (let i = 2; i < cells.length; i++) {
+        const choice = cells[i].trim();
+        if (choice && choice !== ':-:' && choice.length > 1) {
+          choices.push(choice);
+        }
+      }
+      if (choices.length < 2) continue;
+
+      const answer = answerNum <= choices.length ? answerNum : 1;
+
+      questions.push({
+        question: questionText,
+        choices,
+        answer,
+        explanation: '',
+        category: theme
+      });
+    }
+  }
+  return questions;
+}
+
+// Smart line parser: handles tab-separated, pipe-separated, and CSV (with quoted fields)
+function parseLine(line) {
+  // 1. Tab-separated (copy-paste from spreadsheet)
+  const tabCells = line.split('\t');
+  if (tabCells.length >= 3) return tabCells;
+
+  // 2. Pipe-separated (markdown table)
+  if (line.includes('|')) {
+    const pipeCells = line.split('|').map(c => c.trim()).filter(c => c && c !== ':-:');
+    if (pipeCells.length >= 3) return pipeCells;
+  }
+
+  // 3. CSV (Google Sheets export — handles quoted fields with commas inside)
+  if (line.includes(',')) {
+    return parseCsv(line);
+  }
+
+  return [line];
+}
+
+function parseCsv(line) {
+  const cells = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"' && line[i + 1] === '"') {
+        current += '"'; i++; // escaped quote
+      } else if (ch === '"') {
+        inQuotes = false;
+      } else {
+        current += ch;
+      }
+    } else {
+      if (ch === '"') {
+        inQuotes = true;
+      } else if (ch === ',') {
+        cells.push(current); current = '';
+      } else {
+        current += ch;
+      }
+    }
+  }
+  cells.push(current);
+  return cells;
+}
+
+
+async function generateToPool() {
+  const theme = getSelectedTheme();
+  if (!theme) { showToast('テーマを選択してください'); return; }
+
+  const text = document.getElementById('extractedText').value.trim();
+  if (!text) { showToast('テキストを入力してください'); return; }
+
+  const numQ = document.getElementById('numQuestions').value;
+  const numC = document.getElementById('numChoices').value;
+  const diff = { basic:'基礎レベル', standard:'標準レベル', advanced:'応用レベル' }[document.getElementById('difficulty').value];
+  const target = { pharmacist:'薬剤師', general:'一般職', all:'全職種' }[document.getElementById('targetRole').value];
+  const custom = document.getElementById('customPrompt').value.trim();
+
+  const prompt = `あなたは調剤薬局の教育担当です。以下のテキスト資料に基づいて、効果試験用の選択式問題を作成してください。
+
+【条件】
+- テーマ: ${theme}
+- 問題数: ${numQ}問
+- 選択肢数: 各${numC}択（「間違っているものを選べ」形式を基本。一部「正しいものを選べ」も可）
+- 難易度: ${diff}
+- 対象者: ${target}
+${custom ? `- 追加指示: ${custom}` : ''}
+
+【ルール】
+- 資料の内容に基づくこと。正解は1つ。各問に正解番号(1始まり)と解説を付ける
+- 選択肢は紛らわしいが明確に正誤判断できるもの
+- categoryは「${theme}」を設定
+
+【出力】JSON配列のみ出力:
+[{"question":"問題文","choices":["選択肢1","選択肢2",...],"answer":1,"explanation":"解説","category":"${theme}"}]
+
+【テキスト資料】
+${text.substring(0, 80000)}`;
+
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = true; btn.textContent = '生成中...';
+  showStatus('genStatus', `「${theme}」の問題を生成しています...`, 'loading');
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'x-api-key':getApiKey(), 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+      body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:8192, messages:[{role:'user',content:prompt}] })
+    });
+    if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.error?.message || `API error: ${res.status}`); }
+
+    const data = await res.json();
+    const jsonMatch = data.content[0].text.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) throw new Error('JSONが取得できませんでした');
+
+    const questions = JSON.parse(jsonMatch[0]).map((q, i) => ({
+      question: q.question || `問題${i+1}`,
+      choices: Array.isArray(q.choices) ? q.choices : [],
+      answer: typeof q.answer === 'number' ? q.answer : 1,
+      explanation: q.explanation || '',
+      category: theme
+    }));
+
+    if (!questionPool[theme]) questionPool[theme] = [];
+    questionPool[theme].push(...questions);
+    savePool();
+
+    showStatus('genStatus', `「${theme}」に${questions.length}問追加しました（プール合計: ${questionPool[theme].length}問）`, 'success');
+    renderPool();
+
+  } catch (err) {
+    showStatus('genStatus', `エラー: ${err.message}`, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = '問題を生成してプールに追加';
+    updateGenerateBtn();
+  }
+}
+window.generateToPool = generateToPool;
+
+// ====== Pool rendering ======
+function renderPool() {
+  const container = document.getElementById('poolCards');
+  const empty = document.getElementById('poolEmpty');
+  const totalEl = document.getElementById('poolTotal');
+  const themes = Object.keys(questionPool);
+
+  if (!themes.length || themes.every(t => !questionPool[t].length)) {
+    container.innerHTML = ''; empty.classList.remove('hidden'); totalEl.classList.add('hidden'); return;
+  }
+  empty.classList.add('hidden'); totalEl.classList.remove('hidden');
+
+  let total = 0;
+  container.innerHTML = themes.filter(t => questionPool[t].length).map(t => {
+    const count = questionPool[t].length;
+    total += count;
+    return `<div class="pool-card">
+      <div class="pool-card-info">
+        <div class="pool-card-theme">${esc(t)}</div>
+        <div class="pool-card-count">${count}問</div>
+      </div>
+      <div class="pool-card-actions">
+        <button class="btn btn-sm btn-danger" onclick="removeTheme('${esc(t)}')">削除</button>
+      </div>
+    </div>`;
+  }).join('');
+  totalEl.textContent = `合計: ${total}問`;
+}
+
+function removeTheme(theme) {
+  if (!confirm(`「${theme}」の問題をすべて削除しますか？`)) return;
+  delete questionPool[theme];
+  savePool();
+  renderPool();
+  showToast(`「${theme}」を削除しました`);
+}
+window.removeTheme = removeTheme;
+
+// ====== Pool import/export ======
+function exportPool() {
+  const data = JSON.stringify(questionPool, null, 2);
+  const blob = new Blob([data], { type:'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `問題プール_${new Date().toISOString().slice(0,10)}.json`;
+  a.click(); URL.revokeObjectURL(a.href);
+  showToast('プールをJSONファイルに保存しました');
+}
+window.exportPool = exportPool;
+
+document.getElementById('importPoolInput').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if (typeof data !== 'object') throw new Error('不正な形式');
+    // Merge
+    for (const [theme, questions] of Object.entries(data)) {
+      if (!questionPool[theme]) questionPool[theme] = [];
+      questionPool[theme].push(...questions);
+    }
+    savePool();
+    renderPool();
+    showToast('プールを復元しました');
+  } catch (err) { showToast(`読み込みエラー: ${err.message}`); }
+  e.target.value = '';
+});
+
+// ====== Build tab ======
+let roleThemes = new Set(['アカデミック']); // default: アカデミック = 職能
+
+function renderBuildTab() {
+  const container = document.getElementById('buildRows');
+  const empty = document.getElementById('buildEmpty');
+  const totalEl = document.getElementById('buildTotal');
+  const roleChipsEl = document.getElementById('roleChips');
+  const themes = Object.keys(questionPool).filter(t => questionPool[t].length);
+
+  if (!themes.length) {
+    container.innerHTML = ''; roleChipsEl.innerHTML = ''; empty.classList.remove('hidden'); totalEl.textContent = '';
+    document.getElementById('buildBtn').disabled = true; return;
+  }
+  empty.classList.add('hidden');
+  document.getElementById('buildBtn').disabled = false;
+
+  // Render role chips (toggle 職能/共通)
+  roleChipsEl.innerHTML = themes.map(t => {
+    const isRole = roleThemes.has(t);
+    return `<button class="chip ${isRole ? 'selected' : ''}" data-rtheme="${esc(t)}" onclick="toggleRoleTheme('${esc(t)}')">${esc(t)} ${isRole ? '【職能】' : '【共通】'}</button>`;
+  }).join('');
+
+  container.innerHTML = themes.map(t => {
+    const count = questionPool[t].length;
+    const label = roleThemes.has(t) ? '職能' : '共通';
+    return `<div class="build-row">
+      <div class="build-theme">${esc(t)} <span style="font-size:var(--text-xs);color:${roleThemes.has(t)?'var(--color-primary)':'var(--color-text-sub)'}">${label}</span></div>
+      <div class="build-avail">（${count}問中）</div>
+      <input type="number" class="build-input" data-theme="${esc(t)}" min="0" max="${count}" value="${Math.min(5, count)}" oninput="updateBuildTotal()">
+      <span>問</span>
+    </div>`;
+  }).join('');
+  updateBuildTotal();
+}
+
+function toggleRoleTheme(theme) {
+  if (roleThemes.has(theme)) roleThemes.delete(theme);
+  else roleThemes.add(theme);
+  renderBuildTab();
+}
+window.toggleRoleTheme = toggleRoleTheme;
+
+function updateBuildTotal() {
+  let total = 0, commonTotal = 0, roleTotal = 0;
+  document.querySelectorAll('.build-input').forEach(inp => {
+    const n = parseInt(inp.value) || 0;
+    total += n;
+    if (roleThemes.has(inp.dataset.theme)) roleTotal += n;
+    else commonTotal += n;
+  });
+  document.getElementById('buildTotal').innerHTML = `出題合計: <strong>${total}問</strong>（共通 ${commonTotal}問 + 職能 ${roleTotal}問）`;
+  document.getElementById('buildBtn').disabled = total === 0;
+}
+window.updateBuildTotal = updateBuildTotal;
+
+function buildQuiz() {
+  // Collect role theme names for embedding in HTML
+  const roleThemeNames = [...roleThemes];
+
+  const selected = [];
+  document.querySelectorAll('.build-input').forEach(inp => {
+    const theme = inp.dataset.theme;
+    const count = parseInt(inp.value) || 0;
+    if (count > 0 && questionPool[theme]) {
+      const shuffled = [...questionPool[theme]].sort(() => Math.random() - 0.5);
+      const picked = shuffled.slice(0, count).map(q => ({
+        ...q,
+        section: roleThemes.has(theme) ? '職能' : '共通'
+      }));
+      selected.push(...picked);
+    }
+  });
+
+  if (!selected.length) { showToast('出題数を指定してください'); return; }
+
+  // Shuffle all
+  finalQuiz = selected.sort(() => Math.random() - 0.5);
+
+  // Generate quiz ID and save to localStorage for grading
+  const quizId = `quiz_${Date.now()}`;
+  finalQuiz._quizId = quizId;
+  finalQuiz._roleThemes = roleThemeNames;
+  const savedQuizzes = JSON.parse(localStorage.getItem('saved_quizzes') || '{}');
+  savedQuizzes[quizId] = {
+    id: quizId,
+    createdAt: new Date().toISOString(),
+    totalQuestions: finalQuiz.length,
+    questions: finalQuiz.map(q => ({
+      question: q.question,
+      choices: q.choices,
+      answer: q.answer,
+      explanation: q.explanation,
+      category: q.category,
+      section: q.section
+    }))
+  };
+  localStorage.setItem('saved_quizzes', JSON.stringify(savedQuizzes));
+
+  // Send answer key to GAS (Drive storage)
+  const gasQuestions = finalQuiz.map(q => ({
+    question: q.question, choices: q.choices, answer: q.answer,
+    explanation: q.explanation, category: q.category,
+    section: q.section === 'role' ? 'role' : 'common'
+  }));
+  fetch(GAS_URL, {
+    method: 'POST', body: JSON.stringify({ action: 'saveAnswerKey', quizId: quizId, questions: gasQuestions })
+  }).then(r => r.json()).then(d => {
+    if (d.success) showToast('正解データをDriveに保存しました');
+    else console.error('GAS error:', d.error);
+  }).catch(e => console.error('GAS fetch error:', e));
+
+  renderFinalTable();
+  document.getElementById('finalCard').classList.remove('hidden');
+  document.getElementById('finalCard').scrollIntoView({ behavior:'smooth' });
+
+  const commonCount = finalQuiz.filter(q => q.section === '共通').length;
+  const roleCount = finalQuiz.filter(q => q.section === '職能').length;
+  showToast(`${finalQuiz.length}問（共通${commonCount} + 職能${roleCount}）の問題集を作成しました（ID: ${quizId}）`);
+}
+window.buildQuiz = buildQuiz;
+
+function renderFinalTable() {
+  if (!finalQuiz) return;
+  const maxC = Math.max(...finalQuiz.map(q => q.choices.length));
+  let html = '<table class="result-table"><thead><tr><th>No.</th><th>区分</th><th>テーマ</th><th>正解</th><th>問題文</th>';
+  for (let i = 1; i <= maxC; i++) html += `<th>選択肢${i}</th>`;
+  html += '<th>解説</th></tr></thead><tbody>';
+  finalQuiz.forEach((q, idx) => {
+    html += `<tr><td>${idx+1}</td><td>${q.section||''}</td><td>${esc(q.category)}</td><td>${q.answer}</td><td>${esc(q.question)}</td>`;
+    for (let i = 0; i < maxC; i++) html += `<td>${q.choices[i] ? esc(q.choices[i]) : ''}</td>`;
+    html += `<td>${esc(q.explanation)}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('finalTable').innerHTML = html;
+}
+
+// ====== Copy & Download ======
+function copyForSpreadsheet() {
+  if (!finalQuiz) return;
+  const maxC = Math.max(...finalQuiz.map(q => q.choices.length));
+  let tsv = 'No.\tテーマ\t正解\t問題文';
+  for (let i = 1; i <= maxC; i++) tsv += `\t選択肢${i}`;
+  tsv += '\t解説\n';
+  finalQuiz.forEach((q, idx) => {
+    tsv += `${idx+1}\t${q.category}\t${q.answer}\t${q.question}`;
+    for (let i = 0; i < maxC; i++) tsv += `\t${q.choices[i]||''}`;
+    tsv += `\t${q.explanation}\n`;
+  });
+  navigator.clipboard.writeText(tsv).then(() => showToast('スプシ用にコピーしました'));
+}
+window.copyForSpreadsheet = copyForSpreadsheet;
+
+function copyAsJSON() {
+  if (!finalQuiz) return;
+  navigator.clipboard.writeText(JSON.stringify(finalQuiz, null, 2)).then(() => showToast('JSONをコピーしました'));
+}
+window.copyAsJSON = copyAsJSON;
+
+function downloadTestHtml() {
+  if (!finalQuiz || !finalQuiz.length) { showToast('問題がありません'); return; }
+  const quizId = finalQuiz._quizId || `quiz_${Date.now()}`;
+  // Strip answers and explanations — only questions and choices go to staff
+  const quizForHtml = finalQuiz.map(q => ({ question: q.question, choices: q.choices, category: q.category, section: q.section || '' }));
+  const quizJson = JSON.stringify(quizForHtml);
+  const today = new Date().toISOString().slice(0, 10);
+
+  const html = `<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>効果試験 ${today} | ワイズグループ</title>
+<style>
+:root{--c-pri:#2563EB;--c-bg:#f8fafc;--c-surface:#fff;--c-text:#1E293B;--c-sub:#64748B;--c-border:#E2E8F0;--c-ok:#16a34a;--c-ng:#dc2626;--r-md:10px;--r-lg:16px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Hiragino Kaku Gothic ProN','Yu Gothic','Noto Sans JP',sans-serif;background:var(--c-bg);color:var(--c-text);line-height:1.7;padding:24px;max-width:900px;margin:0 auto}
+h1{font-size:1.25rem;color:var(--c-pri);margin-bottom:8px}
+.meta{font-size:.875rem;color:var(--c-sub);margin-bottom:24px}
+.card{background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--r-lg);padding:24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.name-input{width:100%;max-width:300px;padding:12px;border:1px solid var(--c-border);border-radius:6px;font-size:1rem;margin-bottom:24px}
+.q-num{font-weight:700;margin-bottom:4px}.q-cat{font-size:.75rem;color:var(--c-sub);margin-bottom:4px}.q-text{font-weight:600;margin-bottom:8px}
+.choices{list-style:none;padding:0}.choices li{padding:10px 16px;margin:4px 0;border-radius:6px;font-size:.875rem;cursor:pointer;border:2px solid transparent;transition:all .15s ease}
+.choices li:hover{background:#F0F4FF}.choices li.sel{background:#F0F4FF;border-color:var(--c-pri);font-weight:600}
+.btn{display:inline-flex;align-items:center;padding:12px 28px;border:none;border-radius:var(--r-md);font-size:.875rem;font-weight:700;cursor:pointer;min-height:48px;transition:all .2s ease}
+.btn-pri{background:var(--c-pri);color:#fff;box-shadow:0 4px 14px rgba(37,99,235,.35)}.btn-pri:hover{transform:translateY(-2px)}
+.btn-pri:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.sent-msg{text-align:center;padding:32px;font-size:1rem}
+.sent-msg .check{font-size:48px;margin-bottom:16px}
+.actions{text-align:center;margin:24px 0}
+@media(max-width:768px){body{padding:12px}}
+</style></head><body>
+<h1>効果試験</h1><p class="meta">実施日: ${today} | ワイズグループ</p>
+
+<!-- Login screen -->
+<div id="loginScreen" class="card" style="text-align:center;padding:48px 24px">
+  <div style="font-size:48px;margin-bottom:16px">&#128272;</div>
+  <p style="font-weight:700;font-size:1.1rem;margin-bottom:8px">Googleアカウントでログインしてください</p>
+  <p style="font-size:.875rem;color:#64748B;margin-bottom:24px">会社のGoogleアカウントでログインが必要です。<br>ログイン後に問題が表示されます。</p>
+  <button class="btn btn-pri" id="loginBtn" onclick="doLogin()">Googleでログイン</button>
+  <div id="loginStatus" style="margin-top:16px;font-size:.875rem"></div>
+</div>
+
+<!-- Quiz area (hidden until login) -->
+<div id="mainArea" style="display:none">
+  <div class="card" style="background:#f0fdf4;border-color:#16a34a">
+    <p style="font-size:.875rem"><span style="font-weight:700" id="loggedInUser"></span> でログイン中</p>
+  </div>
+  <div class="card">
+    <label style="font-weight:600;display:block;margin-bottom:8px;">氏名（必須）</label>
+    <input type="text" id="staffName" class="name-input" placeholder="山田 太郎">
+    <label style="font-weight:600;display:block;margin-bottom:8px;">所属店舗（必須）</label>
+    <input type="text" id="staffStore" class="name-input" placeholder="柏薬局">
+  </div>
+  <div id="quizArea"></div>
+  <div class="actions">
+    <p style="font-size:.75rem;color:#64748B;margin-bottom:8px">回答は1回のみです。送信後は変更できません。</p>
+    <button class="btn btn-pri" id="submitBtn" onclick="submitQuiz()">回答を送信する</button>
+  </div>
+  <div id="sentArea" style="display:none"></div>
+</div>
+
+<script>
+var GAS_URL='${GAS_URL}';
+var QUIZ_ID='${quizId}';
+var QUIZ=${quizJson};
+var answers={};var submitted=false;var loggedInEmail='';
+
+function doLogin(){
+  document.getElementById('loginBtn').disabled=true;
+  document.getElementById('loginStatus').innerHTML='<span style="color:#2563EB">Googleログイン画面を開いています...</span>';
+  // Open GAS URL in new window to trigger Google login, then check auth
+  var authWin=window.open(GAS_URL+'?action=checkAuth','_blank','width=500,height=600');
+  // Poll for completion
+  var checkCount=0;
+  var timer=setInterval(function(){
+    checkCount++;
+    if(checkCount>120){clearInterval(timer);document.getElementById('loginStatus').innerHTML='<span style="color:#dc2626">タイムアウトしました。再度お試しください。</span>';document.getElementById('loginBtn').disabled=false;return;}
+    try{
+      // After login, try fetching auth status
+      fetch(GAS_URL+'?action=checkAuth').then(function(r){return r.json()}).then(function(d){
+        if(d.email){
+          clearInterval(timer);
+          loggedInEmail=d.email;
+          if(authWin&&!authWin.closed)authWin.close();
+          showQuiz();
+        }
+      }).catch(function(){});
+    }catch(e){}
+  },2000);
+}
+
+function showQuiz(){
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('mainArea').style.display='block';
+  document.getElementById('loggedInUser').textContent=loggedInEmail;
+  initQuiz();
+}
+
+function initQuiz(){document.getElementById('quizArea').innerHTML=QUIZ.map(function(q,i){return '<div class="card qi" id="qi-'+i+'"><div class="q-num">Q'+(i+1)+' <span style="font-size:.7rem;color:#64748B">'+(q.section||'')+'</span></div><div class="q-cat">'+esc(q.category)+'</div><div class="q-text">'+esc(q.question)+'</div><ul class="choices">'+q.choices.map(function(c,ci){return '<li data-q="'+i+'" data-c="'+ci+'" onclick="pick('+i+','+ci+')">'+(ci+1)+'. '+esc(c)+'</li>'}).join('')+'</ul></div>'}).join('')}
+function pick(qi,ci){if(submitted)return;answers[qi]=ci+1;var lis=document.querySelectorAll('#qi-'+qi+' .choices li');for(var j=0;j<lis.length;j++){if(parseInt(lis[j].getAttribute('data-c'))===ci)lis[j].classList.add('sel');else lis[j].classList.remove('sel')}}
+function submitQuiz(){
+  var name=document.getElementById('staffName').value.trim();
+  var store=document.getElementById('staffStore').value.trim();
+  if(!name){alert('氏名を入力してください');return}
+  if(!store){alert('所属店舗を入力してください');return}
+  var total=QUIZ.length;var answered=Object.keys(answers).length;
+  if(answered<total&&!confirm(''+(total-answered)+'問が未回答です。送信しますか？'))return;
+  if(!confirm(name+'さん（'+store+'）の回答を送信します。送信後は変更できません。よろしいですか？'))return;
+  submitted=true;
+  document.getElementById('submitBtn').disabled=true;
+  document.getElementById('submitBtn').textContent='送信中...';
+  var lis=document.querySelectorAll('.choices li');for(var j=0;j<lis.length;j++)lis[j].style.cursor='default';
+  // Send to GAS
+  var data={action:'submitAnswer',quizId:QUIZ_ID,name:name,store:store,totalQuestions:total,answeredCount:answered,answers:answers};
+  fetch(GAS_URL,{method:'POST',body:JSON.stringify(data)})
+    .then(function(r){return r.json()})
+    .then(function(d){
+      if(d.success){
+        document.getElementById('submitBtn').textContent='送信済み';
+        document.getElementById('sentArea').style.display='block';
+        document.getElementById('sentArea').innerHTML='<div class="card sent-msg"><div class="check">&#9989;</div><p><strong>'+esc(name)+'</strong> ('+esc(d.email||'')+') の回答を送信しました。</p><p style="font-size:.875rem;color:#64748B;margin-top:8px">採点結果は後日お知らせします。</p></div>';
+      } else {
+        document.getElementById('submitBtn').textContent='送信エラー';
+        var msg=d.alreadySubmitted?'既に回答済みです。1人1回のみ送信できます。':'送信エラー: '+d.error;
+        document.getElementById('sentArea').style.display='block';
+        document.getElementById('sentArea').innerHTML='<div class="card" style="border-color:#dc2626"><p style="color:#dc2626;font-weight:700">'+esc(msg)+'</p></div>';
+        if(!d.alreadySubmitted){submitted=false;document.getElementById('submitBtn').disabled=false;document.getElementById('submitBtn').textContent='回答を送信する';}
+      }
+      document.getElementById('sentArea').scrollIntoView({behavior:'smooth'});
+    })
+    .catch(function(e){
+      submitted=false;document.getElementById('submitBtn').disabled=false;document.getElementById('submitBtn').textContent='回答を送信する';
+      alert('送信に失敗しました。インターネット接続を確認してください。');
+    });
+}
+function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML}
+init();
+<\/script></body></html>`;
+
+  const blob = new Blob([html], { type:'text/html' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `効果試験_${today}.html`;
+  a.click(); URL.revokeObjectURL(a.href);
+  showToast('配布用HTMLをダウンロードしました');
+}
+window.downloadTestHtml = downloadTestHtml;
+
+// ====== Utilities ======
+function esc(s) { const d = document.createElement('div'); d.textContent = s||''; return d.innerHTML; }
+function showStatus(id, msg, type) {
+  const el = document.getElementById(id); el.classList.remove('hidden');
+  const cls = {info:'status-info',success:'status-success',error:'status-error',loading:'status-loading'}[type]||'status-info';
+  el.className = `status ${cls}`;
+  el.innerHTML = type==='loading' ? `<div class="spinner"></div>${esc(msg)}` : esc(msg);
+}
+function showToast(msg) {
+  const ex = document.querySelector('.toast'); if(ex) ex.remove();
+  const t = document.createElement('div'); t.className='toast'; t.textContent=msg;
+  document.body.appendChild(t); setTimeout(()=>t.remove(),3000);
+}
+
+// ====== Grading tab ======
+function renderGradeTab() {
+  const savedQuizzes = JSON.parse(localStorage.getItem('saved_quizzes') || '{}');
+  const list = document.getElementById('savedQuizList');
+  const ids = Object.keys(savedQuizzes).sort().reverse();
+  if (!ids.length) {
+    list.innerHTML = '<p style="color:var(--color-text-sub);font-size:var(--text-sm)">保存済み問題集がありません。「問題集作成」タブで問題集を作成してください。</p>';
+    return;
+  }
+  list.innerHTML = ids.map(id => {
+    const q = savedQuizzes[id];
+    const date = new Date(q.createdAt).toLocaleString('ja-JP');
+    return `<div class="pool-card">
+      <div class="pool-card-info">
+        <div class="pool-card-theme" style="font-size:var(--text-sm)">${id}</div>
+        <div class="pool-card-count">${q.totalQuestions}問 | ${date}</div>
+      </div>
+      <div class="pool-card-actions">
+        <button class="btn btn-sm btn-primary" onclick="gradeAllFromGas('${id}')">一括採点</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteSavedQuiz('${id}')">削除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function deleteSavedQuiz(id) {
+  if (!confirm(`問題集「${id}」を削除しますか？`)) return;
+  const saved = JSON.parse(localStorage.getItem('saved_quizzes') || '{}');
+  delete saved[id];
+  localStorage.setItem('saved_quizzes', JSON.stringify(saved));
+  renderGradeTab();
+  showToast('削除しました');
+}
+window.deleteSavedQuiz = deleteSavedQuiz;
+
+function gradeFromInput() {
+  const raw = document.getElementById('gradeJsonInput').value.trim();
+  if (!raw) { showStatus('gradeStatus', '回答データを入力してください', 'error'); return; }
+
+  // Extract JSON from email body (may have surrounding text)
+  let answerData;
+  try {
+    // Try direct JSON parse first
+    answerData = JSON.parse(raw);
+  } catch (e) {
+    // Try to find JSON in email text
+    const jsonMatch = raw.match(/\{[\s\S]*"quizId"[\s\S]*"answers"[\s\S]*\}/);
+    if (jsonMatch) {
+      try { answerData = JSON.parse(jsonMatch[0]); } catch (e2) {}
+    }
+  }
+  if (!answerData || !answerData.quizId || !answerData.answers) {
+    showStatus('gradeStatus', '回答データのJSON形式が不正です。quizId, answersが必要です。', 'error');
+    return;
+  }
+
+  gradeAnswerData(answerData);
+}
+window.gradeFromInput = gradeFromInput;
+
+document.getElementById('gradeFileInput').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    document.getElementById('gradeJsonInput').value = text;
+    gradeFromInput();
+  } catch (err) { showStatus('gradeStatus', `読み込みエラー: ${err.message}`, 'error'); }
+  e.target.value = '';
+});
+
+function gradeAnswerData(answerData) {
+  const savedQuizzes = JSON.parse(localStorage.getItem('saved_quizzes') || '{}');
+  const quiz = savedQuizzes[answerData.quizId];
+  if (!quiz) {
+    showStatus('gradeStatus', `問題集「${answerData.quizId}」が見つかりません。問題集作成時のブラウザで採点してください。`, 'error');
+    return;
+  }
+
+  const name = answerData.name || '不明';
+  const questions = quiz.questions;
+  const total = questions.length;
+  const answers = answerData.answers;
+
+  let correct = 0, commonCorrect = 0, commonTotal = 0, roleCorrect = 0, roleTotal = 0;
+  const details = [];
+
+  questions.forEach((q, i) => {
+    const userAns = answers[String(i)] || null;
+    const isCorrect = userAns === q.answer;
+    if (isCorrect) correct++;
+    if (q.section === '職能') { roleTotal++; if (isCorrect) roleCorrect++; }
+    else { commonTotal++; if (isCorrect) commonCorrect++; }
+    details.push({ ...q, index: i, userAnswer: userAns, isCorrect });
+  });
+
+  const pct = Math.round(correct / total * 100);
+  const commonPct = commonTotal ? Math.round(commonCorrect / commonTotal * 100) : 0;
+  const rolePct = roleTotal ? Math.round(roleCorrect / roleTotal * 100) : 0;
+  const commonFail = commonTotal > 0 && commonCorrect < Math.ceil(commonTotal * 0.5);
+  const roleFail = roleTotal > 0 && roleCorrect < Math.ceil(roleTotal * 0.5);
+  const overallPass = pct >= 65;
+  const passed = overallPass && !commonFail && !roleFail;
+
+  let reasonHtml = '';
+  if (!passed) {
+    if (!overallPass) reasonHtml += '<p style="color:var(--color-danger)">全体正答率が65%未満です</p>';
+    if (commonFail) reasonHtml += `<p style="color:var(--color-danger)">共通が50%未満です（${commonCorrect}/${commonTotal}問 = ${commonPct}%）</p>`;
+    if (roleFail) reasonHtml += `<p style="color:var(--color-danger)">職能が50%未満です（${roleCorrect}/${roleTotal}問 = ${rolePct}%）</p>`;
+  }
+
+  let wrongHtml = '';
+  details.filter(d => !d.isCorrect).forEach(d => {
+    wrongHtml += `<div style="padding:var(--space-3);border-left:3px solid var(--color-danger);margin:var(--space-2) 0;font-size:var(--text-sm)">
+      <strong>Q${d.index + 1}.</strong> [${d.section || ''}] ${esc(d.question)}<br>
+      回答: ${d.userAnswer ? d.choices[d.userAnswer - 1] : '未回答'}<br>
+      正解: ${d.choices[d.answer - 1]}<br>
+      <span style="color:var(--color-text-sub)">${esc(d.explanation)}</span>
+    </div>`;
+  });
+
+  const scoreClass = passed ? 'score-high' : pct >= 50 ? 'score-mid' : 'score-low';
+
+  document.getElementById('gradeResultContent').innerHTML = `
+    <div class="score-display" style="display:flex;align-items:center;gap:var(--space-6);padding:var(--space-6);background:var(--color-bg-alt);border-radius:var(--radius-lg);margin-bottom:var(--space-4)">
+      <div class="score-circle ${scoreClass}" style="width:120px;height:120px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">
+        <span style="font-size:var(--text-3xl)">${pct}%</span>
+        <span style="font-size:var(--text-xs)">${correct}/${total}問正解</span>
+      </div>
+      <div>
+        <p><strong>${esc(name)}</strong> さんの結果</p>
+        <p>問題集: ${answerData.quizId}</p>
+        <p>共通: ${commonCorrect}/${commonTotal}問（${commonPct}%）　職能: ${roleCorrect}/${roleTotal}問（${rolePct}%）</p>
+        <p style="font-size:var(--text-xl);font-weight:700;margin-top:8px;color:${passed ? 'var(--color-success)' : 'var(--color-danger)'}">${passed ? '合格' : '不合格'}</p>
+        ${reasonHtml}
+        <p style="font-size:var(--text-xs);color:var(--color-text-sub);margin-top:8px">合格基準: 全体65%以上、かつ共通・職能それぞれ50%以上</p>
+      </div>
+    </div>
+    ${wrongHtml ? `<h3 style="margin-bottom:var(--space-2)">間違えた問題</h3>${wrongHtml}` : '<p style="color:var(--color-success);font-weight:600">全問正解です！</p>'}
+  `;
+  // Store for copy
+  window._lastGradeResult = { name, quizId: answerData.quizId, date: answerData.date, total, correct, commonCorrect, commonTotal, roleCorrect, roleTotal, passed, details };
+
+  document.getElementById('gradeResultCard').classList.remove('hidden');
+  document.getElementById('gradeResultCard').scrollIntoView({ behavior: 'smooth' });
+  showStatus('gradeStatus', `${name}さんの採点が完了しました`, 'success');
+}
+
+// === GAS one-click grade all ===
+function gradeAllFromGas(quizId) {
+  showStatus('gradeStatus', 'Driveから回答データを取得して採点中...', 'loading');
+  fetch(GAS_URL + '?action=gradeAll&quizId=' + encodeURIComponent(quizId))
+    .then(r => r.json())
+    .then(d => {
+      if (!d.success) { showStatus('gradeStatus', 'Error: ' + d.error, 'error'); return; }
+      if (!d.results.length) { showStatus('gradeStatus', 'まだ回答が届いていません', 'info'); return; }
+
+      // Build summary table
+      let html = `<h3 style="margin-bottom:var(--space-3)">問題集: ${esc(quizId)} (${d.totalQuestions}問) — ${d.results.length}名</h3>`;
+      html += '<div class="result-wrapper"><table class="result-table"><thead><tr>';
+      html += '<th>氏名</th><th>メール</th><th>提出日時</th><th>正解数</th><th>正答率</th><th>共通</th><th>職能</th><th>判定</th><th>不合格理由</th>';
+      html += '</tr></thead><tbody>';
+
+      const allResults = [];
+      d.results.forEach(r => {
+        const cls = r.passed ? 'color:var(--color-success)' : 'color:var(--color-danger)';
+        const submitted = r.submittedAt ? new Date(r.submittedAt).toLocaleString('ja-JP') : '';
+        html += `<tr>
+          <td>${esc(r.name)}</td><td>${esc(r.email)}</td><td>${submitted}</td>
+          <td>${r.correct}/${r.total}</td><td>${r.percentage}%</td>
+          <td>${r.commonCorrect}/${r.commonTotal}</td><td>${r.roleCorrect}/${r.roleTotal}</td>
+          <td style="${cls};font-weight:700">${r.passed ? 'PASS' : 'FAIL'}</td>
+          <td style="font-size:var(--text-xs)">${r.failReasons.join(', ')}</td>
+        </tr>`;
+        allResults.push(r);
+      });
+      html += '</tbody></table></div>';
+
+      // Store for copy
+      window._lastBulkGrade = { quizId, totalQuestions: d.totalQuestions, results: allResults };
+
+      document.getElementById('gradeResultContent').innerHTML = html;
+      document.getElementById('gradeResultCard').classList.remove('hidden');
+      document.getElementById('gradeResultCard').scrollIntoView({ behavior: 'smooth' });
+
+      const passCount = d.results.filter(r => r.passed).length;
+      showStatus('gradeStatus', `${d.results.length}名を採点しました（合格: ${passCount}名 / 不合格: ${d.results.length - passCount}名）`, 'success');
+    })
+    .catch(e => showStatus('gradeStatus', 'GAS connection error: ' + e.message, 'error'));
+}
+window.gradeAllFromGas = gradeAllFromGas;
+
+function copyGradeResult() {
+  // Bulk grade result
+  if (window._lastBulkGrade) {
+    const b = window._lastBulkGrade;
+    const lines = [`問題集: ${b.quizId}\t${b.totalQuestions}問\t${b.results.length}名`, ''];
+    lines.push('氏名\tメール\t提出日時\t正解数\t正答率\t共通\t職能\t判定\t不合格理由');
+    b.results.forEach(r => {
+      const submitted = r.submittedAt ? new Date(r.submittedAt).toLocaleString('ja-JP') : '';
+      lines.push(`${r.name}\t${r.email}\t${submitted}\t${r.correct}/${r.total}\t${r.percentage}%\t${r.commonCorrect}/${r.commonTotal}\t${r.roleCorrect}/${r.roleTotal}\t${r.passed ? 'PASS' : 'FAIL'}\t${r.failReasons.join(', ')}`);
+    });
+    navigator.clipboard.writeText(lines.join('\n')).then(() => showToast('一括採点結果をコピーしました'));
+    return;
+  }
+  // Single grade result
+  const r = window._lastGradeResult;
+  if (!r) return;
+  const pct = Math.round(r.correct / r.total * 100);
+  const lines = [`${r.name}\t採点結果: ${r.correct}/${r.total}問正解(${pct}%)\t共通:${r.commonCorrect}/${r.commonTotal}\t職能:${r.roleCorrect}/${r.roleTotal}\t判定:${r.passed ? '合格' : '不合格'}\t問題集:${r.quizId}\t実施日:${r.date || ''}`, ''];
+  lines.push('氏名\t区分\tNo.\tテーマ\t問題文\t結果\t回答\t正解\t解説');
+  r.details.forEach(d => {
+    lines.push(`${r.name}\t${d.section || ''}\t${d.index + 1}\t${d.category}\t${d.question}\t${d.isCorrect ? '○' : '×'}\t${d.userAnswer ? d.choices[d.userAnswer - 1] : '未回答'}\t${d.choices[d.answer - 1]}\t${d.explanation}`);
+  });
+  navigator.clipboard.writeText(lines.join('\n')).then(() => showToast('採点結果をコピーしました'));
+}
+window.copyGradeResult = copyGradeResult;
+
+// ====== Init: restore pool and render ======
+renderPool();
+// Render grade tab saved quizzes on tab switch
+const origSwitchTab = switchTab;
+switchTab = function(t) {
+  origSwitchTab(t);
+  if (t === 'grade') renderGradeTab();
+};
+window.switchTab = switchTab;
+</script>
+</body>
+</html>
