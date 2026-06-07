@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>効果試験 | ワイズグループ</title>
+<style>
+:root{--c-pri:#2563EB;--c-bg:#f8fafc;--c-surface:#fff;--c-text:#1E293B;--c-sub:#64748B;--c-border:#E2E8F0;--c-ok:#16a34a;--c-ng:#dc2626;--r-md:10px;--r-lg:16px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Hiragino Kaku Gothic ProN','Yu Gothic','Noto Sans JP',sans-serif;background:var(--c-bg);color:var(--c-text);line-height:1.7;padding:24px;max-width:900px;margin:0 auto}
+h1{font-size:1.25rem;color:var(--c-pri);margin-bottom:8px}
+.meta{font-size:.875rem;color:var(--c-sub);margin-bottom:24px}
+.card{background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--r-lg);padding:24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.name-input{width:100%;max-width:300px;padding:12px;border:1px solid var(--c-border);border-radius:6px;font-size:1rem;margin-bottom:16px}
+.q-num{font-weight:700;margin-bottom:4px}.q-cat{font-size:.75rem;color:var(--c-sub);margin-bottom:4px}.q-text{font-weight:600;margin-bottom:8px}
+.choices{list-style:none;padding:0}.choices li{padding:10px 16px;margin:4px 0;border-radius:6px;font-size:.875rem;cursor:pointer;border:2px solid transparent;transition:all .15s ease}
+.choices li:hover{background:#F0F4FF}.choices li.sel{background:#F0F4FF;border-color:var(--c-pri);font-weight:600}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 28px;border:none;border-radius:var(--r-md);font-size:.875rem;font-weight:700;cursor:pointer;min-height:48px;transition:all .2s ease;font-family:inherit}
+.btn-pri{background:var(--c-pri);color:#fff;box-shadow:0 4px 14px rgba(37,99,235,.35)}.btn-pri:hover{transform:translateY(-2px)}
+.btn-pri:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-google{background:#fff;color:#444;border:2px solid var(--c-border);font-size:1rem;padding:14px 32px;gap:12px}
+.btn-google:hover{background:#f8f8f8;border-color:#ccc}
+.btn-google img{width:20px;height:20px}
+.actions{text-align:center;margin:24px 0}
+.login-screen{text-align:center;padding:60px 24px}
+.login-screen h2{font-size:1.5rem;margin-bottom:8px}
+.login-screen p{color:var(--c-sub);margin-bottom:32px}
+.user-bar{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--r-md);margin-bottom:24px;font-size:.875rem}
+.user-bar img{width:32px;height:32px;border-radius:50%}
+.user-bar .email{color:var(--c-sub);font-size:.75rem}
+.user-bar .logout{margin-left:auto;color:var(--c-pri);cursor:pointer;font-size:.75rem;text-decoration:underline}
+.loading{text-align:center;padding:60px;color:var(--c-sub)}
+.spinner{width:32px;height:32px;border:3px solid var(--c-border);border-top-color:var(--c-pri);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error-msg{text-align:center;padding:40px;color:var(--c-ng)}
+@media(max-width:768px){body{padding:12px}}
+</style>
+</head>
+<body>
+
+<h1>効果試験</h1>
+<p class="meta">ワイズグループ</p>
+
+<!-- Login screen -->
+<div id="loginScreen" class="login-screen" style="display:none">
+  <h2>Googleアカウントでログイン</h2>
+  <p>社内のGoogleアカウントでログインしてください</p>
+  <button class="btn btn-google" onclick="signIn()">
+    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+    Googleでログイン
+  </button>
+</div>
+
+<!-- Loading -->
+<div id="loadingScreen" class="loading">
+  <div class="spinner"></div>
+  <p>読み込み中...</p>
+</div>
+
+<!-- Main quiz area (hidden until logged in + quiz loaded) -->
+<div id="mainArea" style="display:none">
+  <div id="userBar" class="user-bar"></div>
+
+  <div class="card">
+    <label style="font-weight:600;display:block;margin-bottom:8px;">氏名（必須）</label>
+    <input type="text" id="staffName" class="name-input" placeholder="山田 太郎">
+    <label style="font-weight:600;display:block;margin-bottom:8px;">所属店舗（必須）</label>
+    <input type="text" id="staffStore" class="name-input" placeholder="柏薬局">
+  </div>
+  <div id="quizArea"></div>
+  <div class="actions">
+    <p style="font-size:.75rem;color:#64748B;margin-bottom:8px">回答は1回のみです。送信後は変更できません。</p>
+    <button class="btn btn-pri" id="submitBtn" onclick="submitQuiz()">回答を送信する</button>
+  </div>
+  <div id="sentArea" style="display:none"></div>
+</div>
+
+<!-- Error -->
+<div id="errorScreen" class="error-msg" style="display:none"></div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+
+<script>
+// === Config ===
+var GAS_URL = 'https://script.google.com/macros/s/AKfycbwAIuyNvnSrMV1O41TPVeXx24KHmnWHluThzSIc8Kw0tY_GKiYwgQBLQ02u_on7KWSdZQ/exec';
+
+var firebaseConfig = {
+  apiKey: 'AIzaSyAr30JXa0zLWJzUQsM_ulu97cyEG9t65TU',
+  authDomain: 'wise-budget-26d4c.firebaseapp.com',
+  projectId: 'wise-budget-26d4c'
+};
+firebase.initializeApp(firebaseConfig);
+var auth = firebase.auth();
+
+// === State ===
+var QUIZ_ID = '';
+var QUIZ = [];
+var answers = {};
+var submitted = false;
+var currentUser = null;
+
+// === Get quiz ID from URL ===
+var params = new URLSearchParams(window.location.search);
+QUIZ_ID = params.get('id') || '';
+
+if (!QUIZ_ID) {
+  showError('問題集IDが指定されていません。管理者から配布されたURLを使用してください。');
+} else {
+  // Wait for auth state
+  auth.onAuthStateChanged(function(user) {
+    if (user) {
+      currentUser = user;
+      showQuizArea();
+    } else {
+      currentUser = null;
+      showLogin();
+    }
+  });
+}
+
+// === Auth ===
+function signIn() {
+  auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(function(err) {
+    if (err.code !== 'auth/popup-closed-by-user') {
+      showError('ログインエラー: ' + err.message);
+    }
+  });
+}
+
+function signOut() {
+  auth.signOut();
+}
+
+// === Screen control ===
+function showLogin() {
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('mainArea').style.display = 'none';
+  document.getElementById('errorScreen').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'block';
+}
+
+function showLoading() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('mainArea').style.display = 'none';
+  document.getElementById('errorScreen').style.display = 'none';
+  document.getElementById('loadingScreen').style.display = 'block';
+}
+
+function showError(msg) {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('mainArea').style.display = 'none';
+  var el = document.getElementById('errorScreen');
+  el.style.display = 'block';
+  el.innerHTML = '<h2 style="margin-bottom:8px">エラー</h2><p>' + esc(msg) + '</p>';
+}
+
+function showQuizArea() {
+  showLoading();
+  // Render user bar
+  var u = currentUser;
+  document.getElementById('userBar').innerHTML =
+    (u.photoURL ? '<img src="' + esc(u.photoURL) + '" alt="">' : '') +
+    '<div><div>' + esc(u.displayName || '') + '</div><div class="email">' + esc(u.email || '') + '</div></div>' +
+    '<span class="logout" onclick="signOut()">ログアウト</span>';
+
+  // Fetch quiz from GAS
+  fetch(GAS_URL + '?action=getQuizQuestions&quizId=' + encodeURIComponent(QUIZ_ID))
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (!d.success) { showError(d.error || 'Quiz not found'); return; }
+      QUIZ = d.questions;
+      renderQuiz();
+      document.getElementById('loadingScreen').style.display = 'none';
+      document.getElementById('mainArea').style.display = 'block';
+    })
+    .catch(function(e) { showError('通信エラー: ' + e.message); });
+}
+
+// === Quiz rendering ===
+function renderQuiz() {
+  document.getElementById('quizArea').innerHTML = QUIZ.map(function(q, i) {
+    var sectionLabel = q.section === 'role' ? '職能' : q.section === 'common' ? '共通' : (q.section || '');
+    return '<div class="card qi" id="qi-' + i + '">' +
+      '<div class="q-num">Q' + (i + 1) + ' <span style="font-size:.7rem;color:#64748B">' + sectionLabel + '</span></div>' +
+      '<div class="q-cat">' + esc(q.category) + '</div>' +
+      '<div class="q-text">' + esc(q.question) + '</div>' +
+      '<ul class="choices">' + q.choices.map(function(c, ci) {
+        return '<li data-q="' + i + '" data-c="' + ci + '" onclick="pick(' + i + ',' + ci + ')">' + (ci + 1) + '. ' + esc(c) + '</li>';
+      }).join('') + '</ul></div>';
+  }).join('');
+}
+
+function pick(qi, ci) {
+  if (submitted) return;
+  answers[qi] = ci + 1;
+  var lis = document.querySelectorAll('#qi-' + qi + ' .choices li');
+  for (var j = 0; j < lis.length; j++) {
+    if (parseInt(lis[j].getAttribute('data-c')) === ci) lis[j].classList.add('sel');
+    else lis[j].classList.remove('sel');
+  }
+}
+
+// === Submit ===
+function submitQuiz() {
+  var name = document.getElementById('staffName').value.trim();
+  var store = document.getElementById('staffStore').value.trim();
+  if (!name) { alert('氏名を入力してください'); return; }
+  if (!store) { alert('所属店舗を入力してください'); return; }
+
+  var total = QUIZ.length;
+  var answered = Object.keys(answers).length;
+  if (answered < total && !confirm((total - answered) + '問が未回答です。送信しますか？')) return;
+  if (!confirm(name + 'さん（' + store + '）の回答を送信します。送信後は変更できません。よろしいですか？')) return;
+
+  submitted = true;
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('submitBtn').textContent = '送信中...';
+  var lis = document.querySelectorAll('.choices li');
+  for (var j = 0; j < lis.length; j++) lis[j].style.cursor = 'default';
+
+  // Get Firebase ID token for server verification
+  currentUser.getIdToken(true).then(function(idToken) {
+    var data = {
+      action: 'submitAnswer',
+      quizId: QUIZ_ID,
+      name: name,
+      store: store,
+      totalQuestions: total,
+      answeredCount: answered,
+      answers: answers,
+      idToken: idToken
+    };
+
+    return fetch(GAS_URL, { method: 'POST', body: JSON.stringify(data) });
+  }).then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.success) {
+      document.getElementById('submitBtn').textContent = '送信済み';
+      document.getElementById('sentArea').style.display = 'block';
+      document.getElementById('sentArea').innerHTML =
+        '<div class="card" style="text-align:center;padding:32px">' +
+        '<div style="font-size:48px;margin-bottom:16px">&#9989;</div>' +
+        '<p><strong>' + esc(name) + '</strong> (' + esc(d.email || currentUser.email || '') + ') の回答を送信しました。</p>' +
+        '<p style="font-size:.875rem;color:#64748B;margin-top:8px">採点結果は後日お知らせします。</p></div>';
+    } else {
+      document.getElementById('submitBtn').textContent = '送信エラー';
+      var msg = d.alreadySubmitted ? '既に回答済みです。1人1回のみ送信できます。' : '送信エラー: ' + d.error;
+      document.getElementById('sentArea').style.display = 'block';
+      document.getElementById('sentArea').innerHTML =
+        '<div class="card" style="border-color:#dc2626"><p style="color:#dc2626;font-weight:700">' + esc(msg) + '</p></div>';
+      if (!d.alreadySubmitted) {
+        submitted = false;
+        document.getElementById('submitBtn').disabled = false;
+        document.getElementById('submitBtn').textContent = '回答を送信する';
+      }
+    }
+    document.getElementById('sentArea').scrollIntoView({ behavior: 'smooth' });
+  }).catch(function(e) {
+    submitted = false;
+    document.getElementById('submitBtn').disabled = false;
+    document.getElementById('submitBtn').textContent = '回答を送信する';
+    alert('送信に失敗しました。インターネット接続を確認してください。');
+  });
+}
+
+function esc(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+</script>
+</body>
+</html>

@@ -269,7 +269,8 @@
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:var(--space-3);margin-bottom:var(--space-4)">
         <h2 style="margin-bottom:0">完成した問題集</h2>
         <div style="display:flex;gap:var(--space-2);flex-wrap:wrap">
-          <button class="btn btn-sm btn-primary" onclick="downloadTestHtml()">配布用HTMLダウンロード</button>
+          <button class="btn btn-sm btn-primary" onclick="copyQuizUrl()">配布URLをコピー</button>
+          <button class="btn btn-sm btn-secondary" onclick="downloadTestHtml()">配布用HTMLダウンロード</button>
           <button class="btn btn-sm btn-secondary" onclick="copyForSpreadsheet()">スプシ用コピー</button>
           <button class="btn btn-sm btn-secondary" onclick="copyAsJSON()">JSONコピー</button>
         </div>
@@ -1031,6 +1032,13 @@ function copyAsJSON() {
   navigator.clipboard.writeText(JSON.stringify(finalQuiz, null, 2)).then(() => showToast('JSONをコピーしました'));
 }
 window.copyAsJSON = copyAsJSON;
+
+function copyQuizUrl() {
+  if (!finalQuiz || !finalQuiz._quizId) { showToast('先に問題集を作成してください'); return; }
+  const url = `https://wiseinc-pharmacy.github.io/quiz-generator/quiz.html?id=${finalQuiz._quizId}`;
+  navigator.clipboard.writeText(url).then(() => showToast('配布URLをコピーしました'));
+}
+window.copyQuizUrl = copyQuizUrl;
 
 function downloadTestHtml() {
   if (!finalQuiz || !finalQuiz.length) { showToast('問題がありません'); return; }
