@@ -214,8 +214,11 @@
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:var(--space-3);margin-bottom:var(--space-4)">
         <h2 style="margin-bottom:0">問題プール</h2>
-        <div style="display:flex;gap:var(--space-2)">
-          <button class="btn btn-sm btn-secondary" onclick="exportPool()">プールをJSON保存</button>
+        <div style="display:flex;gap:var(--space-2);flex-wrap:wrap">
+          <button class="btn btn-sm btn-primary" onclick="savePoolToDrive()">Driveに保存</button>
+          <button class="btn btn-sm btn-secondary" onclick="loadPoolFromDrive()">Driveから読み込む</button>
+          <button class="btn btn-sm btn-secondary" onclick="openPoolFolder()">保管場所を開く</button>
+          <button class="btn btn-sm btn-secondary" onclick="exportPool()">JSON保存</button>
           <button class="btn btn-sm btn-secondary" onclick="document.getElementById('importPoolInput').click()">JSONから復元</button>
           <input type="file" id="importPoolInput" accept=".json" style="display:none">
         </div>
@@ -795,6 +798,61 @@ function exportPool() {
   showToast('プールをJSONファイルに保存しました');
 }
 window.exportPool = exportPool;
+
+// ====== Drive pool storage ======
+async function savePoolToDrive() {
+  const themes = Object.keys(questionPool);
+  if (!themes.length || themes.every(t => !questionPool[t].length)) {
+    showToast('保存するプールがありません'); return;
+  }
+  showToast('Driveに保存中...');
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'savePool', pool: questionPool })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+    showToast(`Driveに保存しました（${data.fileName}）`);
+  } catch (err) {
+    showToast(`保存エラー: ${err.message}`);
+  }
+}
+window.savePoolToDrive = savePoolToDrive;
+
+async function loadPoolFromDrive() {
+  showToast('Driveから読み込み中...');
+  try {
+    const res = await fetch(GAS_URL + '?action=loadPool');
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+    if (!data.pool || !Object.keys(data.pool).length) {
+      showToast('Driveにプールが保存されていません'); return;
+    }
+    const merge = Object.keys(questionPool).some(t => questionPool[t].length);
+    if (merge && !confirm('現在のプールにDriveのデータを上書きしますか？\n（「キャンセル」で現在のプールを維持）')) return;
+    questionPool = data.pool;
+    savePool();
+    renderPool();
+    const savedAt = data.savedAt ? new Date(data.savedAt).toLocaleString('ja-JP') : '';
+    showToast(`Driveから読み込みました（${data.fileName}${savedAt ? ' / ' + savedAt : ''}）`);
+  } catch (err) {
+    showToast(`読み込みエラー: ${err.message}`);
+  }
+}
+window.loadPoolFromDrive = loadPoolFromDrive;
+
+async function openPoolFolder() {
+  try {
+    const res = await fetch(GAS_URL + '?action=getPoolFolderUrl');
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+    window.open(data.url, '_blank');
+  } catch (err) {
+    showToast(`エラー: ${err.message}`);
+  }
+}
+window.openPoolFolder = openPoolFolder;
 
 document.getElementById('importPoolInput').addEventListener('change', async e => {
   const file = e.target.files[0];
