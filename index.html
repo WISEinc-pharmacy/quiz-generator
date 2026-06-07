@@ -918,7 +918,7 @@ function buildQuiz() {
   const gasQuestions = finalQuiz.map(q => ({
     question: q.question, choices: q.choices, answer: q.answer,
     explanation: q.explanation, category: q.category,
-    section: q.section === 'role' ? 'role' : 'common'
+    section: q.section === '職能' ? 'role' : 'common'
   }));
   fetch(GAS_URL, {
     method: 'POST', body: JSON.stringify({ action: 'saveAnswerKey', quizId: quizId, questions: gasQuestions })
