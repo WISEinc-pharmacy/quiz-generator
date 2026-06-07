@@ -270,6 +270,8 @@
         <h2 style="margin-bottom:0">完成した問題集</h2>
         <div style="display:flex;gap:var(--space-2);flex-wrap:wrap">
           <button class="btn btn-sm btn-primary" onclick="copyQuizUrl()">配布URLをコピー</button>
+          <button class="btn btn-sm btn-secondary" onclick="printQuiz()">問題PDF出力</button>
+          <button class="btn btn-sm btn-secondary" onclick="printQuizWithAnswers()">問題+正解PDF出力</button>
           <button class="btn btn-sm btn-secondary" onclick="downloadTestHtml()">配布用HTMLダウンロード</button>
           <button class="btn btn-sm btn-secondary" onclick="copyForSpreadsheet()">スプシ用コピー</button>
           <button class="btn btn-sm btn-secondary" onclick="copyAsJSON()">JSONコピー</button>
@@ -315,6 +317,7 @@
       <div id="gradeResultContent"></div>
       <div style="display:flex;gap:var(--space-2);flex-wrap:wrap;margin-top:var(--space-4)">
         <button class="btn btn-sm btn-secondary" onclick="copyGradeResult()">結果をコピー</button>
+        <button class="btn btn-sm btn-secondary" onclick="printGradeResult()">採点結果PDF出力</button>
       </div>
     </div>
   </div>
@@ -1039,6 +1042,76 @@ function copyQuizUrl() {
   navigator.clipboard.writeText(url).then(() => showToast('配布URLをコピーしました'));
 }
 window.copyQuizUrl = copyQuizUrl;
+
+// ====== Print functions ======
+function openPrintWindow(title, bodyHtml) {
+  const w = window.open('', '_blank');
+  w.document.write(`<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">
+<title>${title}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Hiragino Kaku Gothic ProN','Yu Gothic',sans-serif;color:#1E293B;line-height:1.6;padding:24px;font-size:11pt}
+h1{font-size:16pt;margin-bottom:4px}
+.meta{font-size:9pt;color:#64748B;margin-bottom:16px}
+.q{margin-bottom:14px;page-break-inside:avoid}
+.q-num{font-weight:700;font-size:10pt}
+.q-section{font-size:8pt;color:#64748B}
+.q-text{font-weight:600;margin:2px 0 4px}
+.choices{list-style:none;padding-left:16px}.choices li{font-size:10pt;margin:1px 0}
+.answer{color:#2563EB;font-weight:700;font-size:9pt;margin-top:2px}
+.explanation{font-size:9pt;color:#64748B;margin-top:1px}
+table{width:100%;border-collapse:collapse;font-size:9pt;margin-top:12px}
+th,td{border:1px solid #ccc;padding:4px 8px;text-align:left}
+th{background:#f0f4ff;font-weight:600}
+.pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}
+@media print{body{padding:12px}@page{margin:15mm}}
+</style></head><body>${bodyHtml}</body></html>`);
+  w.document.close();
+  setTimeout(() => w.print(), 300);
+}
+
+function printQuiz() {
+  if (!finalQuiz) return;
+  const today = new Date().toLocaleDateString('ja-JP');
+  let html = `<h1>効果試験</h1><p class="meta">実施日: ${today} | ワイズグループ | ${finalQuiz.length}問</p>`;
+  html += `<p style="margin-bottom:16px;font-size:10pt">氏名: ＿＿＿＿＿＿＿＿　所属: ＿＿＿＿＿＿＿＿</p>`;
+  finalQuiz.forEach((q, i) => {
+    html += `<div class="q"><div class="q-num">Q${i+1} <span class="q-section">${q.section||''}</span></div>`;
+    html += `<div class="q-text">${esc(q.question)}</div><ol class="choices">`;
+    q.choices.forEach((c, ci) => { html += `<li>${ci+1}. ${esc(c)}</li>`; });
+    html += `</ol></div>`;
+  });
+  openPrintWindow('効果試験（問題）', html);
+}
+window.printQuiz = printQuiz;
+
+function printQuizWithAnswers() {
+  if (!finalQuiz) return;
+  const today = new Date().toLocaleDateString('ja-JP');
+  let html = `<h1>効果試験（正解付き）</h1><p class="meta">作成日: ${today} | ワイズグループ | ${finalQuiz.length}問 | 管理者用</p>`;
+  finalQuiz.forEach((q, i) => {
+    html += `<div class="q"><div class="q-num">Q${i+1} <span class="q-section">[${q.section||''}] ${esc(q.category)}</span></div>`;
+    html += `<div class="q-text">${esc(q.question)}</div><ol class="choices">`;
+    q.choices.forEach((c, ci) => {
+      const mark = (ci + 1) === q.answer ? ' ★正解' : '';
+      html += `<li${mark ? ' style="font-weight:700;color:#2563EB"' : ''}>${ci+1}. ${esc(c)}${mark}</li>`;
+    });
+    html += `</ol>`;
+    if (q.explanation) html += `<div class="explanation">解説: ${esc(q.explanation)}</div>`;
+    html += `</div>`;
+  });
+  openPrintWindow('効果試験（正解付き）', html);
+}
+window.printQuizWithAnswers = printQuizWithAnswers;
+
+function printGradeResult() {
+  const content = document.getElementById('gradeResultContent').innerHTML;
+  if (!content) return;
+  const today = new Date().toLocaleDateString('ja-JP');
+  const html = `<h1>採点結果</h1><p class="meta">出力日: ${today} | ワイズグループ</p>${content}`;
+  openPrintWindow('採点結果', html);
+}
+window.printGradeResult = printGradeResult;
 
 function downloadTestHtml() {
   if (!finalQuiz || !finalQuiz.length) { showToast('問題がありません'); return; }
