@@ -939,12 +939,23 @@ async function loadPoolFromDrive() {
     if (!data.success) throw new Error(data.error);
     if (!data.pool || !Object.keys(data.pool).length) throw new Error('プールデータが空です');
 
-    const merge = Object.keys(questionPool).some(t => questionPool[t].length);
-    if (merge && !confirm('現在のプールにDriveのデータを上書きしますか？\n（「キャンセル」で現在のプールを維持）')) return '読込キャンセル';
-    questionPool = data.pool;
+    const hasExisting = Object.keys(questionPool).some(t => questionPool[t].length);
+    let mode = 'replace';
+    if (hasExisting) {
+      mode = await showLoadModeModal();
+      if (mode === 'cancel') return '読込キャンセル';
+    }
+    if (mode === 'merge') {
+      for (const theme of Object.keys(data.pool)) {
+        if (!questionPool[theme]) questionPool[theme] = [];
+        questionPool[theme].push(...data.pool[theme]);
+      }
+    } else {
+      questionPool = data.pool;
+    }
     savePool();
     renderPool();
-    return '読込完了';
+    return mode === 'merge' ? '追加読込完了' : '読込完了';
   });
 }
 window.loadPoolFromDrive = loadPoolFromDrive;
@@ -990,6 +1001,31 @@ function showPoolSelectModal(pools) {
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) { document.body.removeChild(overlay); resolve(null); }
     });
+  });
+}
+
+function showLoadModeModal() {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+    const modal = document.createElement('div');
+    modal.style.cssText = 'background:#fff;border-radius:12px;padding:24px;max-width:400px;width:90%;';
+    modal.innerHTML = `
+      <h3 style="margin:0 0 12px;font-size:18px;">読み込み方法を選択</h3>
+      <p style="font-size:14px;color:#666;margin-bottom:20px;">現在のプールに問題があります。</p>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button class="btn btn-primary" id="loadMerge" style="width:100%;justify-content:center;">追加で読み込む（既存の問題を残す）</button>
+        <button class="btn btn-secondary" id="loadReplace" style="width:100%;justify-content:center;">上書きする（既存の問題を消す）</button>
+        <button class="btn btn-sm btn-secondary" id="loadCancel" style="width:100%;justify-content:center;margin-top:4px;">キャンセル</button>
+      </div>
+    `;
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    const close = (v) => { document.body.removeChild(overlay); resolve(v); };
+    modal.querySelector('#loadMerge').addEventListener('click', () => close('merge'));
+    modal.querySelector('#loadReplace').addEventListener('click', () => close('replace'));
+    modal.querySelector('#loadCancel').addEventListener('click', () => close('cancel'));
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close('cancel'); });
   });
 }
 
