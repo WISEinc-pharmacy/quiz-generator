@@ -803,46 +803,49 @@ function exportPool() {
 }
 window.exportPool = exportPool;
 
+// ====== Async button helper (共通パターン) ======
+function withButtonState(btn, asyncFn) {
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '処理中...';
+  asyncFn()
+    .then(msg => { btn.textContent = msg || '完了'; setTimeout(() => { btn.textContent = originalText; btn.disabled = false; }, 2000); })
+    .catch(err => { btn.textContent = 'エラー'; showToast(err.message); setTimeout(() => { btn.textContent = originalText; btn.disabled = false; }, 2000); });
+}
+
 // ====== Drive pool storage ======
 async function savePoolToDrive() {
   const themes = Object.keys(questionPool);
   if (!themes.length || themes.every(t => !questionPool[t].length)) {
     showToast('保存するプールがありません'); return;
   }
-  showToast('Driveに保存中...');
-  try {
+  const btn = event.currentTarget;
+  withButtonState(btn, async () => {
     const res = await fetch(GAS_URL, {
       method: 'POST',
       body: JSON.stringify({ action: 'savePool', pool: questionPool })
     });
     const data = await res.json();
     if (!data.success) throw new Error(data.error);
-    showToast(`Driveに保存しました（${data.fileName}）`);
-  } catch (err) {
-    showToast(`保存エラー: ${err.message}`);
-  }
+    return '保存完了';
+  });
 }
 window.savePoolToDrive = savePoolToDrive;
 
 async function loadPoolFromDrive() {
-  showToast('Driveから読み込み中...');
-  try {
+  const btn = event.currentTarget;
+  withButtonState(btn, async () => {
     const res = await fetch(GAS_URL + '?action=loadPool');
     const data = await res.json();
     if (!data.success) throw new Error(data.error);
-    if (!data.pool || !Object.keys(data.pool).length) {
-      showToast('Driveにプールが保存されていません'); return;
-    }
+    if (!data.pool || !Object.keys(data.pool).length) throw new Error('Driveにプールが保存されていません');
     const merge = Object.keys(questionPool).some(t => questionPool[t].length);
-    if (merge && !confirm('現在のプールにDriveのデータを上書きしますか？\n（「キャンセル」で現在のプールを維持）')) return;
+    if (merge && !confirm('現在のプールにDriveのデータを上書きしますか？\n（「キャンセル」で現在のプールを維持）')) return '読込キャンセル';
     questionPool = data.pool;
     savePool();
     renderPool();
-    const savedAt = data.savedAt ? new Date(data.savedAt).toLocaleString('ja-JP') : '';
-    showToast(`Driveから読み込みました（${data.fileName}${savedAt ? ' / ' + savedAt : ''}）`);
-  } catch (err) {
-    showToast(`読み込みエラー: ${err.message}`);
-  }
+    return '読込完了';
+  });
 }
 window.loadPoolFromDrive = loadPoolFromDrive;
 
