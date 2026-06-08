@@ -835,10 +835,22 @@ window.savePoolToDrive = savePoolToDrive;
 async function loadPoolFromDrive() {
   const btn = event.currentTarget;
   withButtonState(btn, async () => {
-    const res = await fetch(GAS_URL + '?action=loadPool');
+    // まず一覧を取得
+    const listRes = await fetch(GAS_URL + '?action=listPools');
+    const listData = await listRes.json();
+    if (!listData.success) throw new Error(listData.error);
+    if (!listData.pools || !listData.pools.length) throw new Error('Driveにプールが保存されていません');
+
+    // 選択モーダルを表示
+    const selectedFile = await showPoolSelectModal(listData.pools);
+    if (!selectedFile) return '読込キャンセル';
+
+    // 選択したファイルを読み込む
+    const res = await fetch(GAS_URL + '?action=loadPool&fileName=' + encodeURIComponent(selectedFile));
     const data = await res.json();
     if (!data.success) throw new Error(data.error);
-    if (!data.pool || !Object.keys(data.pool).length) throw new Error('Driveにプールが保存されていません');
+    if (!data.pool || !Object.keys(data.pool).length) throw new Error('プールデータが空です');
+
     const merge = Object.keys(questionPool).some(t => questionPool[t].length);
     if (merge && !confirm('現在のプールにDriveのデータを上書きしますか？\n（「キャンセル」で現在のプールを維持）')) return '読込キャンセル';
     questionPool = data.pool;
@@ -848,6 +860,47 @@ async function loadPoolFromDrive() {
   });
 }
 window.loadPoolFromDrive = loadPoolFromDrive;
+
+function showPoolSelectModal(pools) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    const modal = document.createElement('div');
+    modal.style.cssText = 'background:#fff;border-radius:12px;padding:24px;max-width:500px;width:90%;max-height:70vh;display:flex;flex-direction:column;';
+    modal.innerHTML = `
+      <h3 style="margin:0 0 16px;font-size:18px;">読み込むプールを選択</h3>
+      <div style="overflow-y:auto;flex:1;margin-bottom:16px;">
+        ${pools.map((p, i) => `
+          <div class="pool-item" data-file="${p.fileName}" style="padding:12px;border:1px solid #e0e0e0;border-radius:8px;margin-bottom:8px;cursor:pointer;transition:background 0.15s;">
+            <div style="font-weight:600;font-size:14px;">${p.savedAt ? new Date(p.savedAt).toLocaleString('ja-JP') : p.fileName}</div>
+            <div style="font-size:12px;color:#666;margin-top:4px;">${p.themes}テーマ / ${p.totalQuestions}問 — ${p.fileName}</div>
+          </div>
+        `).join('')}
+      </div>
+      <div style="text-align:right;">
+        <button class="btn btn-sm btn-secondary" id="poolSelectCancel">キャンセル</button>
+      </div>
+    `;
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    modal.querySelectorAll('.pool-item').forEach(item => {
+      item.addEventListener('mouseenter', () => item.style.background = '#f5f5f5');
+      item.addEventListener('mouseleave', () => item.style.background = '');
+      item.addEventListener('click', () => {
+        document.body.removeChild(overlay);
+        resolve(item.dataset.file);
+      });
+    });
+    modal.querySelector('#poolSelectCancel').addEventListener('click', () => {
+      document.body.removeChild(overlay);
+      resolve(null);
+    });
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) { document.body.removeChild(overlay); resolve(null); }
+    });
+  });
+}
 
 async function openPoolFolder() {
   try {
