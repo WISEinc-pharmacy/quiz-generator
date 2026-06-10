@@ -933,15 +933,23 @@ function withButtonState(btn, asyncFn) {
 
 // ====== Drive pool storage ======
 async function savePoolToDrive() {
-  const themes = Object.keys(questionPool);
-  if (!themes.length || themes.every(t => !questionPool[t].length)) {
+  const themes = Object.keys(questionPool).filter(t => questionPool[t].length);
+  if (!themes.length) {
     showToast('保存するプールがありません'); return;
   }
   const btn = event.currentTarget;
   withButtonState(btn, async () => {
+    // テーマ選択（1テーマのみなら自動選択）
+    let selectedThemes = themes;
+    if (themes.length > 1) {
+      selectedThemes = await showThemeSelectModal('保存するテーマを選択', themes, t => `${questionPool[t].length}問`);
+      if (!selectedThemes || !selectedThemes.length) return '保存キャンセル';
+    }
+    const poolToSave = {};
+    selectedThemes.forEach(t => { poolToSave[t] = questionPool[t]; });
     const res = await fetch(GAS_URL, {
       method: 'POST',
-      body: JSON.stringify({ action: 'savePool', pool: questionPool })
+      body: JSON.stringify({ action: 'savePool', pool: poolToSave })
     });
     const data = await res.json();
     if (!data.success) throw new Error(data.error);
@@ -969,6 +977,14 @@ async function loadPoolFromDrive() {
     if (!data.success) throw new Error(data.error);
     if (!data.pool || !Object.keys(data.pool).length) throw new Error('プールデータが空です');
 
+    // テーマ選択（1テーマのみなら自動選択）
+    const loadThemes = Object.keys(data.pool).filter(t => data.pool[t].length);
+    let selectedThemes = loadThemes;
+    if (loadThemes.length > 1) {
+      selectedThemes = await showThemeSelectModal('読み込むテーマを選択', loadThemes, t => `${data.pool[t].length}問`);
+      if (!selectedThemes || !selectedThemes.length) return '読込キャンセル';
+    }
+
     const hasExisting = Object.keys(questionPool).some(t => questionPool[t].length);
     let mode = 'replace';
     if (hasExisting) {
@@ -976,12 +992,13 @@ async function loadPoolFromDrive() {
       if (mode === 'cancel') return '読込キャンセル';
     }
     if (mode === 'merge') {
-      for (const theme of Object.keys(data.pool)) {
+      for (const theme of selectedThemes) {
         if (!questionPool[theme]) questionPool[theme] = [];
         questionPool[theme].push(...data.pool[theme]);
       }
     } else {
-      questionPool = data.pool;
+      questionPool = {};
+      selectedThemes.forEach(t => { questionPool[t] = data.pool[t]; });
     }
     savePool();
     renderPool();
@@ -989,6 +1006,47 @@ async function loadPoolFromDrive() {
   });
 }
 window.loadPoolFromDrive = loadPoolFromDrive;
+
+function showThemeSelectModal(title, themes, detailFn) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+    const modal = document.createElement('div');
+    modal.style.cssText = 'background:#fff;border-radius:12px;padding:24px;max-width:450px;width:90%;';
+    modal.innerHTML = `
+      <h3 style="margin:0 0 16px;font-size:18px;">${title}</h3>
+      <div style="margin-bottom:16px;">
+        ${themes.map((t, i) => {
+          const detail = detailFn ? ` <span style="color:#64748B;font-size:13px;">(${detailFn(t)})</span>` : '';
+          return `<label style="display:flex;align-items:center;gap:8px;padding:10px 8px;border-bottom:1px solid #f0f0f0;cursor:pointer;font-weight:500;">
+            <input type="checkbox" checked data-theme="${t}" style="width:18px;height:18px;accent-color:#2563EB;">
+            ${t}${detail}
+          </label>`;
+        }).join('')}
+      </div>
+      <div style="display:flex;gap:8px;justify-content:space-between;align-items:center;">
+        <label style="font-size:13px;color:#64748B;cursor:pointer;margin:0;"><input type="checkbox" id="themeSelAll" checked style="margin-right:4px;">すべて</label>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-sm btn-secondary" id="themeSelCancel">キャンセル</button>
+          <button class="btn btn-sm btn-primary" id="themeSelOk">OK</button>
+        </div>
+      </div>
+    `;
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    const checkboxes = modal.querySelectorAll('input[data-theme]');
+    modal.querySelector('#themeSelAll').addEventListener('change', (e) => {
+      checkboxes.forEach(cb => cb.checked = e.target.checked);
+    });
+    const close = (val) => { document.body.removeChild(overlay); resolve(val); };
+    modal.querySelector('#themeSelOk').addEventListener('click', () => {
+      const selected = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.dataset.theme);
+      close(selected);
+    });
+    modal.querySelector('#themeSelCancel').addEventListener('click', () => close(null));
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(null); });
+  });
+}
 
 function showPoolSelectModal(pools) {
   return new Promise((resolve) => {
