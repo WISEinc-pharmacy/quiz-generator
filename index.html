@@ -794,6 +794,7 @@ function renderPool() {
           <div class="pool-card-count">${count}問</div>
         </div>
         <div class="pool-card-actions" onclick="event.stopPropagation()">
+          <button class="btn btn-sm btn-secondary" style="font-size:var(--text-xs);" onclick="printPoolTheme('${tEsc}')">レビューPDF</button>
           <button class="btn btn-sm btn-danger" onclick="removeTheme('${tEsc}')">テーマ全削除</button>
         </div>
       </div>
@@ -1312,6 +1313,27 @@ function printPool() {
   openPrintWindow('問題プール（レビュー用）', html);
 }
 window.printPool = printPool;
+
+function printPoolTheme(theme) {
+  const questions = questionPool[theme];
+  if (!questions || !questions.length) { showToast('問題がありません'); return; }
+  const today = new Date().toLocaleDateString('ja-JP');
+  let html = `<h1>${esc(theme)}（レビュー用）</h1><p class="meta">出力日: ${today} | ワイズグループ | ${questions.length}問</p>`;
+  html += `<p style="font-size:9pt;margin-bottom:16px;">確認欄: 問題に誤りがあれば問題番号に印をつけてください</p>`;
+  questions.forEach((q, qi) => {
+    html += `<div class="q"><div class="q-num">Q${qi+1} <span style="font-size:8pt;color:#999;margin-left:8px;">☐ OK　☐ 要修正</span></div>`;
+    html += `<div class="q-text">${esc(q.question)}</div><ol class="choices">`;
+    q.choices.forEach((c, ci) => {
+      const mark = (ci + 1) === q.answer ? ' ★正解' : '';
+      html += `<li${mark ? ' style="font-weight:700;color:#2563EB"' : ''}>${ci+1}. ${esc(c)}${mark}</li>`;
+    });
+    html += `</ol>`;
+    if (q.explanation) html += `<div class="explanation">解説: ${esc(q.explanation)}</div>`;
+    html += `</div>`;
+  });
+  openPrintWindow(`${theme}（レビュー用）`, html);
+}
+window.printPoolTheme = printPoolTheme;
 
 function printGradeResult() {
   const content = document.getElementById('gradeResultContent').innerHTML;
