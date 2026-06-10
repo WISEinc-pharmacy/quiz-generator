@@ -816,8 +816,12 @@ function deleteQuestion(theme, idx) {
   const q = questionPool[theme][idx];
   if (!confirm(`Q${idx+1}「${q.question.substring(0,30)}...」を削除しますか？`)) return;
   questionPool[theme].splice(idx, 1);
-  if (!questionPool[theme].length) delete questionPool[theme];
+  if (!questionPool[theme].length) { delete questionPool[theme]; savePool(); renderPool(); showToast('削除しました'); return; }
   savePool(); renderPool();
+  // 削除したテーマを展開状態に保つ
+  const tId = 'pool-detail-' + theme.replace(/[^a-zA-Z0-9\u3000-\u9fff]/g, '_');
+  const detailEl = document.getElementById(tId);
+  if (detailEl) detailEl.classList.remove('hidden');
   showToast('削除しました');
 }
 window.deleteQuestion = deleteQuestion;
@@ -860,11 +864,15 @@ function editQuestion(theme, idx) {
   modal.querySelector('#editCancel').addEventListener('click', () => document.body.removeChild(overlay));
   overlay.addEventListener('click', (e) => { if (e.target === overlay) document.body.removeChild(overlay); });
   modal.querySelector('#editSave').addEventListener('click', () => {
-    q.question = modal.querySelector('#editQ').value.trim();
-    q.choices = q.choices.map((_, ci) => modal.querySelector('#editC'+ci).value.trim());
-    q.answer = parseInt(modal.querySelector('#editA').value);
-    q.explanation = modal.querySelector('#editE').value.trim();
+    questionPool[theme][idx].question = modal.querySelector('#editQ').value.trim();
+    questionPool[theme][idx].choices = q.choices.map((_, ci) => modal.querySelector('#editC'+ci).value.trim());
+    questionPool[theme][idx].answer = parseInt(modal.querySelector('#editA').value);
+    questionPool[theme][idx].explanation = modal.querySelector('#editE').value.trim();
     savePool(); renderPool();
+    // 編集したテーマを展開状態に保つ
+    const tId = 'pool-detail-' + theme.replace(/[^a-zA-Z0-9\u3000-\u9fff]/g, '_');
+    const detailEl = document.getElementById(tId);
+    if (detailEl) detailEl.classList.remove('hidden');
     document.body.removeChild(overlay);
     showToast('保存しました');
   });
