@@ -117,6 +117,8 @@
   <div style="margin-left:auto;position:relative;">
     <button class="btn btn-sm btn-secondary" onclick="toggleSettingsMenu()" style="padding:8px 12px;font-size:var(--text-xs);">⚙ 設定</button>
     <div id="settingsMenu" class="hidden" style="position:absolute;right:0;top:100%;margin-top:4px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);box-shadow:0 4px 16px rgba(0,0,0,.12);padding:var(--space-3);min-width:200px;z-index:200;">
+      <div style="font-size:var(--text-xs);color:var(--color-text-sub);font-weight:600;padding:4px 8px;margin-bottom:4px;">Drive</div>
+      <button class="btn btn-sm btn-secondary" style="width:100%;margin-bottom:var(--space-3);justify-content:center;" onclick="openPoolFolder();toggleSettingsMenu();">保管場所を開く</button>
       <div style="font-size:var(--text-xs);color:var(--color-text-sub);font-weight:600;padding:4px 8px;margin-bottom:4px;">ローカルバックアップ</div>
       <button class="btn btn-sm btn-secondary" style="width:100%;margin-bottom:var(--space-2);justify-content:center;" onclick="exportPool();toggleSettingsMenu();">JSON保存</button>
       <button class="btn btn-sm btn-secondary" style="width:100%;justify-content:center;" onclick="document.getElementById('importPoolInput').click();toggleSettingsMenu();">JSONから復元</button>
@@ -229,7 +231,6 @@
         <div style="display:flex;gap:var(--space-2);flex-wrap:wrap">
           <button class="btn btn-sm btn-primary" onclick="savePoolToDrive()">Driveに保存</button>
           <button class="btn btn-sm btn-secondary" onclick="loadPoolFromDrive()">Driveから読み込む</button>
-          <button class="btn btn-sm btn-secondary" onclick="openPoolFolder()">保管場所を開く</button>
           <button class="btn btn-sm btn-secondary" onclick="printPool()">レビュー用PDF</button>
         </div>
       </div>
