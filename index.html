@@ -940,16 +940,13 @@ async function savePoolToDrive() {
   const btn = event.currentTarget;
   withButtonState(btn, async () => {
     // テーマ選択（1テーマのみなら自動選択）
-    let selectedThemes = themes;
-    if (themes.length > 1) {
-      selectedThemes = await showThemeSelectModal('保存するテーマを選択', themes, t => `${questionPool[t].length}問`);
-      if (!selectedThemes || !selectedThemes.length) return '保存キャンセル';
-    }
+    const result = await showThemeSelectModal('保存するテーマを選択', themes, t => `${questionPool[t].length}問`, { showNote: true });
+    if (!result || !result.themes || !result.themes.length) return '保存キャンセル';
     const poolToSave = {};
-    selectedThemes.forEach(t => { poolToSave[t] = questionPool[t]; });
+    result.themes.forEach(t => { poolToSave[t] = questionPool[t]; });
     const res = await fetch(GAS_URL, {
       method: 'POST',
-      body: JSON.stringify({ action: 'savePool', pool: poolToSave })
+      body: JSON.stringify({ action: 'savePool', pool: poolToSave, note: result.note || '' })
     });
     const data = await res.json();
     if (!data.success) throw new Error(data.error);
@@ -981,8 +978,9 @@ async function loadPoolFromDrive() {
     const loadThemes = Object.keys(data.pool).filter(t => data.pool[t].length);
     let selectedThemes = loadThemes;
     if (loadThemes.length > 1) {
-      selectedThemes = await showThemeSelectModal('読み込むテーマを選択', loadThemes, t => `${data.pool[t].length}問`);
-      if (!selectedThemes || !selectedThemes.length) return '読込キャンセル';
+      const loadResult = await showThemeSelectModal('読み込むテーマを選択', loadThemes, t => `${data.pool[t].length}問`);
+      if (!loadResult || !loadResult.themes || !loadResult.themes.length) return '読込キャンセル';
+      selectedThemes = loadResult.themes;
     }
 
     const hasExisting = Object.keys(questionPool).some(t => questionPool[t].length);
@@ -1007,12 +1005,19 @@ async function loadPoolFromDrive() {
 }
 window.loadPoolFromDrive = loadPoolFromDrive;
 
-function showThemeSelectModal(title, themes, detailFn) {
+function showThemeSelectModal(title, themes, detailFn, opts) {
+  const showNote = opts && opts.showNote;
   return new Promise((resolve) => {
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
     const modal = document.createElement('div');
     modal.style.cssText = 'background:#fff;border-radius:12px;padding:24px;max-width:450px;width:90%;';
+    const noteHtml = showNote ? `
+      <div style="margin-bottom:12px;">
+        <label style="font-size:14px;font-weight:600;margin-bottom:4px;display:block;">備考（任意・8文字以内）</label>
+        <input type="text" id="themeSelNote" maxlength="8" placeholder="例: v2, 編集済み, レビュー済" style="width:100%;padding:8px;border:1px solid #e0e0e0;border-radius:6px;font-size:14px;">
+        <div id="themeSelNoteErr" style="font-size:12px;color:#dc2626;margin-top:4px;display:none;">8文字以内にしてください</div>
+      </div>` : '';
     modal.innerHTML = `
       <h3 style="margin:0 0 16px;font-size:18px;">${title}</h3>
       <div style="margin-bottom:16px;">
@@ -1024,6 +1029,7 @@ function showThemeSelectModal(title, themes, detailFn) {
           </label>`;
         }).join('')}
       </div>
+      ${noteHtml}
       <p style="font-size:14px;color:#dc2626;margin-bottom:12px;line-height:1.6;font-weight:600;">※ チェックしたテーマは1つのファイルにまとめて保存されます。分けて保存したい場合は、保存したいテーマだけ選んで繰り返し操作してください。</p>
       <div style="display:flex;gap:8px;justify-content:space-between;align-items:center;">
         <label style="font-size:13px;color:#64748B;cursor:pointer;margin:0;"><input type="checkbox" id="themeSelAll" checked style="margin-right:4px;">すべて</label>
@@ -1039,10 +1045,23 @@ function showThemeSelectModal(title, themes, detailFn) {
     modal.querySelector('#themeSelAll').addEventListener('change', (e) => {
       checkboxes.forEach(cb => cb.checked = e.target.checked);
     });
+    if (showNote) {
+      const noteInput = modal.querySelector('#themeSelNote');
+      const noteErr = modal.querySelector('#themeSelNoteErr');
+      noteInput.addEventListener('input', () => {
+        if (noteInput.value.length > 8) {
+          noteErr.style.display = 'block';
+          noteInput.value = noteInput.value.substring(0, 8);
+        } else {
+          noteErr.style.display = 'none';
+        }
+      });
+    }
     const close = (val) => { document.body.removeChild(overlay); resolve(val); };
     modal.querySelector('#themeSelOk').addEventListener('click', () => {
       const selected = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.dataset.theme);
-      close(selected);
+      const note = showNote ? (modal.querySelector('#themeSelNote').value.trim() || '') : '';
+      close({ themes: selected, note: note });
     });
     modal.querySelector('#themeSelCancel').addEventListener('click', () => close(null));
     overlay.addEventListener('click', (e) => { if (e.target === overlay) close(null); });
@@ -1061,9 +1080,10 @@ function showPoolSelectModal(pools) {
         ${pools.map((p, i) => {
           const dateStr = p.createdAt ? new Date(p.createdAt).toLocaleDateString('ja-JP') : (p.savedAt ? new Date(p.savedAt).toLocaleDateString('ja-JP') : '不明');
           const themes = p.themeNames ? p.themeNames.join(' / ') : `${p.themes || 0}テーマ`;
+          const noteTag = p.note ? `<span style="display:inline-block;background:#2563EB;color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:8px;">${p.note}</span>` : '';
           return `
           <div class="pool-item" data-file="${p.fileName}" style="padding:12px;border:1px solid #e0e0e0;border-radius:8px;margin-bottom:8px;cursor:pointer;transition:background 0.15s;">
-            <div style="font-weight:600;font-size:15px;">${themes}</div>
+            <div style="font-weight:600;font-size:15px;">${themes}${noteTag}</div>
             <div style="font-size:13px;color:#444;margin-top:4px;">作成日: ${dateStr} — ${p.totalQuestions}問</div>
           </div>`;
         }).join('')}
