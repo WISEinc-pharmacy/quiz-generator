@@ -116,13 +116,17 @@
   <button class="tab" data-tab="guide" onclick="switchTab('guide')">使い方</button>
   <div style="margin-left:auto;position:relative;">
     <button class="btn btn-sm btn-secondary" onclick="toggleSettingsMenu()" style="padding:8px 12px;font-size:var(--text-xs);">⚙ 設定</button>
-    <div id="settingsMenu" class="hidden" style="position:absolute;right:0;top:100%;margin-top:4px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);box-shadow:0 4px 16px rgba(0,0,0,.12);padding:var(--space-3);min-width:200px;z-index:200;">
-      <div style="font-size:var(--text-xs);color:var(--color-text-sub);font-weight:600;padding:4px 8px;margin-bottom:4px;">Drive</div>
-      <button class="btn btn-sm btn-secondary" style="width:100%;margin-bottom:var(--space-3);justify-content:center;" onclick="openPoolFolder();toggleSettingsMenu();">保管場所を開く</button>
-      <div style="font-size:var(--text-xs);color:var(--color-text-sub);font-weight:600;padding:4px 8px;margin-bottom:4px;">ローカルバックアップ</div>
-      <button class="btn btn-sm btn-secondary" style="width:100%;margin-bottom:var(--space-2);justify-content:center;" onclick="exportPool();toggleSettingsMenu();">JSON保存</button>
-      <button class="btn btn-sm btn-secondary" style="width:100%;justify-content:center;" onclick="document.getElementById('importPoolInput').click();toggleSettingsMenu();">JSONから復元</button>
+    <div id="settingsMenu" class="hidden" style="position:absolute;right:0;top:100%;margin-top:4px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);box-shadow:0 4px 16px rgba(0,0,0,.12);padding:var(--space-3);min-width:220px;z-index:200;">
+      <div style="font-size:var(--text-xs);color:var(--color-text-sub);font-weight:700;padding:4px 8px;margin-bottom:4px;border-bottom:1px solid var(--color-border);">問題プール</div>
+      <button class="btn btn-sm btn-secondary" style="width:100%;margin-bottom:var(--space-2);justify-content:center;" onclick="openPoolFolder();toggleSettingsMenu();">保管場所を開く</button>
+      <button class="btn btn-sm btn-secondary" style="width:100%;margin-bottom:var(--space-2);justify-content:center;" onclick="exportPool();toggleSettingsMenu();">JSON保存（ローカル）</button>
+      <button class="btn btn-sm btn-secondary" style="width:100%;margin-bottom:var(--space-3);justify-content:center;" onclick="document.getElementById('importPoolInput').click();toggleSettingsMenu();">JSONから復元（ローカル）</button>
       <input type="file" id="importPoolInput" accept=".json" style="display:none">
+      <div style="font-size:var(--text-xs);color:var(--color-text-sub);font-weight:700;padding:4px 8px;margin-bottom:4px;border-bottom:1px solid var(--color-border);">問題集作成</div>
+      <button class="btn btn-sm btn-secondary" style="width:100%;margin-bottom:var(--space-2);justify-content:center;" onclick="printQuiz();toggleSettingsMenu();">問題PDF出力</button>
+      <button class="btn btn-sm btn-secondary" style="width:100%;margin-bottom:var(--space-2);justify-content:center;" onclick="printQuizWithAnswers();toggleSettingsMenu();">問題+正解PDF出力</button>
+      <button class="btn btn-sm btn-secondary" style="width:100%;margin-bottom:var(--space-2);justify-content:center;" onclick="copyForSpreadsheet();toggleSettingsMenu();">スプシ用コピー</button>
+      <button class="btn btn-sm btn-secondary" style="width:100%;justify-content:center;" onclick="copyAsJSON();toggleSettingsMenu();">JSONコピー</button>
     </div>
   </div>
 </div>
@@ -281,11 +285,6 @@
         <h2 style="margin-bottom:0">完成した問題集</h2>
         <div style="display:flex;gap:var(--space-2);flex-wrap:wrap">
           <button class="btn btn-sm btn-primary" onclick="copyQuizUrl()">配布URLをコピー</button>
-          <button class="btn btn-sm btn-secondary" onclick="printQuiz()">問題PDF出力</button>
-          <button class="btn btn-sm btn-secondary" onclick="printQuizWithAnswers()">問題+正解PDF出力</button>
-          <button class="btn btn-sm btn-secondary" onclick="downloadTestHtml()">配布用HTMLダウンロード</button>
-          <button class="btn btn-sm btn-secondary" onclick="copyForSpreadsheet()">スプシ用コピー</button>
-          <button class="btn btn-sm btn-secondary" onclick="copyAsJSON()">JSONコピー</button>
         </div>
       </div>
       <div id="finalTable" class="result-wrapper"></div>
@@ -341,8 +340,8 @@
         <ol style="font-size:var(--text-sm);padding-left:var(--space-6);line-height:2.2">
           <li><strong>問題プール</strong>タブで、テーマごとにPDFを読み込み問題を生成（繰り返し可）</li>
           <li><strong>問題集作成</strong>タブで、テーマごとの出題数を指定 → シャッフルして問題集を作成</li>
-          <li><strong>配布用HTMLダウンロード</strong>でスタッフに配布（APIキー不要で回答・採点可）</li>
-          <li>スタッフがHTMLで回答 → 採点 →「結果をコピー」→ スプシに貼り付けて提出</li>
+          <li><strong>配布URLをコピー</strong>でスタッフに配布URL（quiz.html?id=xxx）を送付</li>
+          <li>スタッフがURLから回答 → GASに自動保存 → 採点タブで一括採点</li>
         </ol>
       </div>
     </div>
@@ -364,8 +363,8 @@
         <p style="margin-bottom:var(--space-3)">プールに貯めた問題から、テーマごとに出題数を指定して1回分の問題集を組み立てます。</p>
         <ul style="padding-left:var(--space-6);line-height:2">
           <li>問題は自動でシャッフルされます（テーマがバラバラに混ざる）</li>
-          <li><strong>配布用HTML</strong> — スタッフに渡すファイル。APIキー不要。名前入力→回答→採点→結果コピー</li>
-          <li><strong>スプシ用コピー</strong> — タブ区切り。Google スプレッドシートに直接貼り付け</li>
+          <li><strong>配布URLをコピー</strong> — quiz.html?id=xxx 形式でスタッフに配布。Googleログイン必須</li>
+          <li>その他（PDF出力・スプシ用コピー・JSONコピー）は⚙設定メニューから</li>
         </ul>
       </div>
     </div>
@@ -373,7 +372,7 @@
       <h2>料金について</h2>
       <p style="font-size:var(--text-sm)">
         問題生成時にAnthropic API（Claude）を使用します（10問あたり約$0.01〜0.02）。<br>
-        スタッフが配布用HTMLで回答する際にはAPI費用はかかりません。
+        スタッフが配布URLから回答する際にはAPI費用はかかりません。
       </p>
     </div>
   </div>
