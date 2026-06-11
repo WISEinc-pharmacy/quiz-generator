@@ -1682,74 +1682,36 @@ function showToast(msg) {
 
 // ====== Grading tab ======
 function renderGradeTab() {
-  const savedQuizzes = JSON.parse(localStorage.getItem('saved_quizzes') || '{}');
   const list = document.getElementById('savedQuizList');
-  const ids = Object.keys(savedQuizzes).sort().reverse();
-  if (!ids.length) {
-    list.innerHTML = '<p style="color:var(--color-text-sub);font-size:var(--text-sm)">保存済み問題集がありません。「問題集作成」タブで問題集を作成してください。</p>';
-    return;
-  }
-  list.innerHTML = ids.map(id => {
-    const q = savedQuizzes[id];
-    const date = new Date(q.createdAt).toLocaleString('ja-JP');
-    return `<div class="pool-card">
-      <div class="pool-card-info">
-        <div class="pool-card-theme" style="font-size:var(--text-sm)">${id}</div>
-        <div class="pool-card-count">${q.totalQuestions}問 | ${date}</div>
-      </div>
-      <div class="pool-card-actions">
-        <button class="btn btn-sm btn-primary" onclick="gradeAllFromGas('${id}')">一括採点</button>
-        <button class="btn btn-sm btn-danger" onclick="deleteSavedQuiz('${id}')">削除</button>
-      </div>
-    </div>`;
-  }).join('');
+  list.innerHTML = '<div class="status status-loading"><div class="spinner"></div>問題集一覧を取得中...</div>';
+  fetch(GAS_URL + '?action=listQuizIds')
+    .then(r => r.json())
+    .then(data => {
+      if (!data.success || !data.quizzes || !data.quizzes.length) {
+        list.innerHTML = '<p style="color:var(--color-text-sub);font-size:var(--text-sm)">問題集がありません。「問題集作成」タブで問題集を作成・配布してください。</p>';
+        return;
+      }
+      const quizzes = data.quizzes.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+      list.innerHTML = quizzes.map(q => {
+        const date = q.createdAt ? new Date(q.createdAt).toLocaleString('ja-JP') : '不明';
+        return `<div class="pool-card">
+          <div class="pool-card-info">
+            <div class="pool-card-theme" style="font-size:var(--text-sm)">${esc(q.quizId)}</div>
+            <div class="pool-card-count">${q.totalQuestions}問 | ${date}</div>
+          </div>
+          <div class="pool-card-actions">
+            <button class="btn btn-sm btn-primary" onclick="gradeAllFromGas('${q.quizId}')">一括採点</button>
+          </div>
+        </div>`;
+      }).join('');
+    })
+    .catch(e => {
+      list.innerHTML = '<p style="color:var(--color-danger);font-size:var(--text-sm)">問題集一覧の取得に失敗しました: ' + esc(e.message) + '</p>';
+    });
 }
 
-function deleteSavedQuiz(id) {
-  if (!confirm(`問題集「${id}」を削除しますか？`)) return;
-  const saved = JSON.parse(localStorage.getItem('saved_quizzes') || '{}');
-  delete saved[id];
-  localStorage.setItem('saved_quizzes', JSON.stringify(saved));
-  renderGradeTab();
-  showToast('削除しました');
-}
-window.deleteSavedQuiz = deleteSavedQuiz;
 
-function gradeFromInput() {
-  const raw = document.getElementById('gradeJsonInput').value.trim();
-  if (!raw) { showStatus('gradeStatus', '回答データを入力してください', 'error'); return; }
 
-  // Extract JSON from email body (may have surrounding text)
-  let answerData;
-  try {
-    // Try direct JSON parse first
-    answerData = JSON.parse(raw);
-  } catch (e) {
-    // Try to find JSON in email text
-    const jsonMatch = raw.match(/\{[\s\S]*"quizId"[\s\S]*"answers"[\s\S]*\}/);
-    if (jsonMatch) {
-      try { answerData = JSON.parse(jsonMatch[0]); } catch (e2) {}
-    }
-  }
-  if (!answerData || !answerData.quizId || !answerData.answers) {
-    showStatus('gradeStatus', '回答データのJSON形式が不正です。quizId, answersが必要です。', 'error');
-    return;
-  }
-
-  gradeAnswerData(answerData);
-}
-window.gradeFromInput = gradeFromInput;
-
-document.getElementById('gradeFileInput').addEventListener('change', async e => {
-  const file = e.target.files[0];
-  if (!file) return;
-  try {
-    const text = await file.text();
-    document.getElementById('gradeJsonInput').value = text;
-    gradeFromInput();
-  } catch (err) { showStatus('gradeStatus', `読み込みエラー: ${err.message}`, 'error'); }
-  e.target.value = '';
-});
 
 function gradeAnswerData(answerData) {
   const savedQuizzes = JSON.parse(localStorage.getItem('saved_quizzes') || '{}');
