@@ -1042,8 +1042,16 @@ function showThemeSelectModal(title, themes, detailFn, opts) {
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
     const checkboxes = modal.querySelectorAll('input[data-theme]');
-    modal.querySelector('#themeSelAll').addEventListener('change', (e) => {
+    const allCb = modal.querySelector('#themeSelAll');
+    // 「すべて」→ 個別を全ON/全OFF
+    allCb.addEventListener('change', (e) => {
       checkboxes.forEach(cb => cb.checked = e.target.checked);
+    });
+    // 個別 → 「すべて」を連動（全ONならチェック、1つでもOFFなら外す）
+    checkboxes.forEach(cb => {
+      cb.addEventListener('change', () => {
+        allCb.checked = Array.from(checkboxes).every(c => c.checked);
+      });
     });
     if (showNote) {
       const noteInput = modal.querySelector('#themeSelNote');
