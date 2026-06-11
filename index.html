@@ -126,7 +126,9 @@
       <button class="btn btn-sm btn-secondary" style="width:100%;margin-bottom:var(--space-2);justify-content:center;" onclick="printQuiz();toggleSettingsMenu();">問題PDF出力</button>
       <button class="btn btn-sm btn-secondary" style="width:100%;margin-bottom:var(--space-2);justify-content:center;" onclick="printQuizWithAnswers();toggleSettingsMenu();">問題+正解PDF出力</button>
       <button class="btn btn-sm btn-secondary" style="width:100%;margin-bottom:var(--space-2);justify-content:center;" onclick="copyForSpreadsheet();toggleSettingsMenu();">スプシ用コピー</button>
-      <button class="btn btn-sm btn-secondary" style="width:100%;justify-content:center;" onclick="copyAsJSON();toggleSettingsMenu();">JSONコピー</button>
+      <button class="btn btn-sm btn-secondary" style="width:100%;margin-bottom:var(--space-3);justify-content:center;" onclick="copyAsJSON();toggleSettingsMenu();">JSONコピー</button>
+      <div style="font-size:var(--text-xs);color:var(--color-text-sub);font-weight:700;padding:4px 8px;margin-bottom:4px;border-bottom:1px solid var(--color-border);">採点</div>
+      <button class="btn btn-sm btn-secondary" style="width:100%;justify-content:center;" onclick="toggleManualGrade();toggleSettingsMenu();">手動採点を表示</button>
     </div>
   </div>
 </div>
@@ -294,11 +296,33 @@
   <!-- ===== Tab 3: 採点 ===== -->
   <div id="tab-grade" class="tab-content">
 
+    <!-- Saved quizzes list -->
     <div class="card">
-      <h2>回答データを読み込む</h2>
+      <h2>一括採点</h2>
       <p style="font-size:var(--text-sm);color:var(--color-text-sub);margin-bottom:var(--space-4)">
-        スタッフから届いた回答メールのJSONを貼り付けるか、ファイルを読み込んでください。<br>
-        問題集の正解データと自動照合して採点します。
+        配布URLから届いた回答をDriveから取得し、自動採点します。
+      </p>
+      <div id="savedQuizList"></div>
+      <div id="gradeStatus" class="hidden"></div>
+    </div>
+
+    <!-- Grade result -->
+    <div id="gradeResultCard" class="card hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:var(--space-3);margin-bottom:var(--space-4)">
+        <h2 style="margin-bottom:0">採点結果</h2>
+        <div style="display:flex;gap:var(--space-2);flex-wrap:wrap">
+          <button class="btn btn-sm btn-primary" onclick="copyGradeResult()">結果をコピー</button>
+          <button class="btn btn-sm btn-secondary" onclick="printGradeResult()">採点結果PDF出力</button>
+        </div>
+      </div>
+      <div id="gradeResultContent"></div>
+    </div>
+
+    <!-- Manual grading (hidden, shown from settings) -->
+    <div id="manualGradeCard" class="card hidden">
+      <h2>手動採点</h2>
+      <p style="font-size:var(--text-sm);color:var(--color-text-sub);margin-bottom:var(--space-4)">
+        回答JSONを直接貼り付けるか、ファイルを読み込んで手動で採点します。
       </p>
       <div class="form-group">
         <label>回答JSONを貼り付け</label>
@@ -308,26 +332,6 @@
         <button class="btn btn-primary" onclick="gradeFromInput()">採点する</button>
         <button class="btn btn-secondary" onclick="document.getElementById('gradeFileInput').click()">JSONファイルから読み込む</button>
         <input type="file" id="gradeFileInput" accept=".json,.txt" style="display:none">
-      </div>
-      <div id="gradeStatus" class="hidden"></div>
-    </div>
-
-    <!-- Saved quizzes list -->
-    <div class="card">
-      <h2>保存済み問題集</h2>
-      <p style="font-size:var(--text-sm);color:var(--color-text-sub);margin-bottom:var(--space-4)">
-        問題集作成時に自動保存されます。回答JSONの問題集IDと照合して採点します。
-      </p>
-      <div id="savedQuizList"></div>
-    </div>
-
-    <!-- Grade result -->
-    <div id="gradeResultCard" class="card hidden">
-      <h2>採点結果</h2>
-      <div id="gradeResultContent"></div>
-      <div style="display:flex;gap:var(--space-2);flex-wrap:wrap;margin-top:var(--space-4)">
-        <button class="btn btn-sm btn-secondary" onclick="copyGradeResult()">結果をコピー</button>
-        <button class="btn btn-sm btn-secondary" onclick="printGradeResult()">採点結果PDF出力</button>
       </div>
     </div>
   </div>
@@ -415,6 +419,16 @@ document.addEventListener('click', (e) => {
     menu.classList.add('hidden');
   }
 });
+
+function toggleManualGrade() {
+  const card = document.getElementById('manualGradeCard');
+  card.classList.toggle('hidden');
+  if (!card.classList.contains('hidden')) {
+    switchTab('grade');
+    card.scrollIntoView({ behavior: 'smooth' });
+  }
+}
+window.toggleManualGrade = toggleManualGrade;
 
 // ====== Theme chips (single select) ======
 document.getElementById('themeChips').addEventListener('click', e => {
