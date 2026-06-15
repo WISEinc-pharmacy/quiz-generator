@@ -1717,6 +1717,7 @@ function renderGradeTab() {
             </div>
             <div class="pool-card-actions">
               <button class="btn btn-sm btn-primary" onclick="gradeAllFromGas('${q.quizId}')">一括採点</button>
+              <button class="btn btn-sm btn-secondary" onclick="copyQuizUrlFromGrade('${q.quizId}')">URL</button>
               <button class="btn btn-sm ${closeBtnStyle}" onclick="toggleQuizClose('${q.quizId}')">${closeLabel}</button>
               <button class="btn btn-sm btn-danger" onclick="deleteQuiz('${q.quizId}')">削除</button>
             </div>
@@ -1762,6 +1763,12 @@ async function toggleAnswerList(quizId, detailId) {
   }
 }
 window.toggleAnswerList = toggleAnswerList;
+
+function copyQuizUrlFromGrade(quizId) {
+  const url = `https://wiseinc-pharmacy.github.io/quiz-generator/quiz.html?id=${quizId}`;
+  navigator.clipboard.writeText(url).then(() => showToast('配布URLをコピーしました'));
+}
+window.copyQuizUrlFromGrade = copyQuizUrlFromGrade;
 
 async function toggleQuizClose(quizId) {
   if (!confirm(`「${quizId}」の受付状態を切り替えますか？`)) return;
