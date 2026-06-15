@@ -1708,16 +1708,20 @@ function renderGradeTab() {
         const closedBadge = q.closed ? '<span style="background:var(--color-danger);color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:8px;">締切済</span>' : '<span style="background:var(--color-success);color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:8px;">受付中</span>';
         const closeLabel = q.closed ? '再開' : '締切';
         const closeBtnStyle = q.closed ? 'btn-success' : 'btn-secondary';
-        return `<div class="pool-card">
-          <div class="pool-card-info">
-            <div class="pool-card-theme" style="font-size:var(--text-sm)">${esc(displayName)}${closedBadge}</div>
-            <div class="pool-card-count">${q.totalQuestions}問 | ${date} <span style="font-size:var(--text-xs);color:var(--color-text-sub);">${esc(q.quizId)}</span></div>
+        const detailId = 'answers-' + q.quizId.replace(/[^a-zA-Z0-9]/g, '_');
+        return `<div class="pool-card" style="display:block;padding:0;">
+          <div style="padding:var(--space-4);display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);flex-wrap:wrap;">
+            <div class="pool-card-info" style="cursor:pointer;" onclick="toggleAnswerList('${q.quizId}','${detailId}')">
+              <div class="pool-card-theme" style="font-size:var(--text-sm)">${esc(displayName)}${closedBadge} <span style="font-size:var(--text-xs);color:var(--color-text-sub);font-weight:400;">▼ 回答一覧</span></div>
+              <div class="pool-card-count">${q.totalQuestions}問 | ${date} <span style="font-size:var(--text-xs);color:var(--color-text-sub);">${esc(q.quizId)}</span></div>
+            </div>
+            <div class="pool-card-actions">
+              <button class="btn btn-sm btn-primary" onclick="gradeAllFromGas('${q.quizId}')">一括採点</button>
+              <button class="btn btn-sm ${closeBtnStyle}" onclick="toggleQuizClose('${q.quizId}')">${closeLabel}</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteQuiz('${q.quizId}')">削除</button>
+            </div>
           </div>
-          <div class="pool-card-actions">
-            <button class="btn btn-sm btn-primary" onclick="gradeAllFromGas('${q.quizId}')">一括採点</button>
-            <button class="btn btn-sm ${closeBtnStyle}" onclick="toggleQuizClose('${q.quizId}')">${closeLabel}</button>
-            <button class="btn btn-sm btn-danger" onclick="deleteQuiz('${q.quizId}')">削除</button>
-          </div>
+          <div id="${detailId}" class="hidden" style="border-top:1px solid var(--color-border);padding:var(--space-3);max-height:300px;overflow-y:auto;font-size:var(--text-sm);"></div>
         </div>`;
       }).join('');
     })
@@ -1725,6 +1729,39 @@ function renderGradeTab() {
       list.innerHTML = '<p style="color:var(--color-danger);font-size:var(--text-sm)">問題集一覧の取得に失敗しました: ' + esc(e.message) + '</p>';
     });
 }
+
+async function toggleAnswerList(quizId, detailId) {
+  const el = document.getElementById(detailId);
+  if (!el) return;
+  if (!el.classList.contains('hidden')) { el.classList.add('hidden'); return; }
+  // 未読込なら取得
+  if (!el.dataset.loaded) {
+    el.innerHTML = '<div class="status status-loading"><div class="spinner"></div>回答一覧を取得中...</div>';
+    el.classList.remove('hidden');
+    try {
+      const res = await fetch(GAS_URL + '?action=listAnswers&quizId=' + encodeURIComponent(quizId));
+      const data = await res.json();
+      if (!data.success) { el.innerHTML = '<p style="color:var(--color-danger)">エラー: ' + esc(data.error) + '</p>'; return; }
+      if (!data.answers || !data.answers.length) { el.innerHTML = '<p style="color:var(--color-text-sub)">まだ回答がありません</p>'; el.dataset.loaded = '1'; return; }
+      const sorted = data.answers.sort((a, b) => (a.submittedAt || '').localeCompare(b.submittedAt || ''));
+      let html = `<table style="width:100%;border-collapse:collapse;font-size:var(--text-xs);">
+        <thead><tr style="background:var(--color-bg-alt);"><th style="padding:6px 8px;border:1px solid var(--color-border);text-align:left;">氏名</th><th style="padding:6px 8px;border:1px solid var(--color-border);text-align:left;">メール</th><th style="padding:6px 8px;border:1px solid var(--color-border);text-align:left;">回答日時</th><th style="padding:6px 8px;border:1px solid var(--color-border);text-align:center;">回答数</th></tr></thead><tbody>`;
+      sorted.forEach(a => {
+        const dt = a.submittedAt ? new Date(a.submittedAt).toLocaleString('ja-JP') : '不明';
+        html += `<tr><td style="padding:6px 8px;border:1px solid var(--color-border);">${esc(a.name || '不明')}</td><td style="padding:6px 8px;border:1px solid var(--color-border);">${esc(a.email || '')}</td><td style="padding:6px 8px;border:1px solid var(--color-border);">${dt}</td><td style="padding:6px 8px;border:1px solid var(--color-border);text-align:center;">${a.answeredCount || 0}/${a.totalQuestions || 0}</td></tr>`;
+      });
+      html += '</tbody></table>';
+      html = `<p style="font-weight:700;margin-bottom:8px;">${sorted.length}名が回答済み</p>` + html;
+      el.innerHTML = html;
+      el.dataset.loaded = '1';
+    } catch (e) {
+      el.innerHTML = '<p style="color:var(--color-danger)">取得エラー: ' + esc(e.message) + '</p>';
+    }
+  } else {
+    el.classList.remove('hidden');
+  }
+}
+window.toggleAnswerList = toggleAnswerList;
 
 async function toggleQuizClose(quizId) {
   if (!confirm(`「${quizId}」の受付状態を切り替えますか？`)) return;
