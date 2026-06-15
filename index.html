@@ -1356,7 +1356,9 @@ function buildQuiz() {
   if (!selected.length) { showToast('出題数を指定してください'); return; }
 
   // 問題集の名前を入力
-  const quizName = prompt('問題集の名前を入力してください\n（例: 2026年度第1回_薬剤師）', `効果試験_${new Date().toLocaleDateString('ja-JP').replace(/\//g, '')}`);
+  const now = new Date();
+  const defaultName = `効果試験_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+  const quizName = prompt('問題集の名前を入力してください\n（例: 2026年度_薬剤師_本番、テスト用 など自由に）', defaultName);
   if (!quizName) { showToast('作成をキャンセルしました'); return; }
   const safeName = quizName.replace(/[^a-zA-Z0-9\u3000-\u9fff\u30A0-\u30FFぁ-ん_\-]/g, '_');
 
