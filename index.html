@@ -1701,15 +1701,19 @@ function renderGradeTab() {
       const quizzes = data.quizzes.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
       list.innerHTML = quizzes.map(q => {
         const date = q.createdAt ? new Date(q.createdAt).toLocaleString('ja-JP') : '不明';
-        // quiz IDから名前部分を抽出（末尾の _タイムスタンプ を除去）
         const displayName = q.quizId.replace(/_\d{13}$/, '').replace(/^quiz_/, '') || q.quizId;
+        const closedBadge = q.closed ? '<span style="background:var(--color-danger);color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:8px;">締切済</span>' : '<span style="background:var(--color-success);color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:8px;">受付中</span>';
+        const closeLabel = q.closed ? '再開' : '締切';
+        const closeBtnStyle = q.closed ? 'btn-success' : 'btn-secondary';
         return `<div class="pool-card">
           <div class="pool-card-info">
-            <div class="pool-card-theme" style="font-size:var(--text-sm)">${esc(displayName)}</div>
+            <div class="pool-card-theme" style="font-size:var(--text-sm)">${esc(displayName)}${closedBadge}</div>
             <div class="pool-card-count">${q.totalQuestions}問 | ${date} <span style="font-size:var(--text-xs);color:var(--color-text-sub);">${esc(q.quizId)}</span></div>
           </div>
           <div class="pool-card-actions">
             <button class="btn btn-sm btn-primary" onclick="gradeAllFromGas('${q.quizId}')">一括採点</button>
+            <button class="btn btn-sm ${closeBtnStyle}" onclick="toggleQuizClose('${q.quizId}')">${closeLabel}</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteQuiz('${q.quizId}')">削除</button>
           </div>
         </div>`;
       }).join('');
@@ -1718,6 +1722,34 @@ function renderGradeTab() {
       list.innerHTML = '<p style="color:var(--color-danger);font-size:var(--text-sm)">問題集一覧の取得に失敗しました: ' + esc(e.message) + '</p>';
     });
 }
+
+async function toggleQuizClose(quizId) {
+  if (!confirm(`「${quizId}」の受付状態を切り替えますか？`)) return;
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST', body: JSON.stringify({ action: 'closeQuiz', quizId })
+    });
+    const data = await res.json();
+    if (!data.success) { showToast('エラー: ' + data.error); return; }
+    showToast(data.closed ? '締め切りました' : '再開しました');
+    renderGradeTab();
+  } catch (e) { showToast('エラー: ' + e.message); }
+}
+window.toggleQuizClose = toggleQuizClose;
+
+async function deleteQuiz(quizId) {
+  if (!confirm(`「${quizId}」を削除しますか？\n正解データが削除され、採点できなくなります。\n（回答データはDriveに残ります）`)) return;
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST', body: JSON.stringify({ action: 'deleteQuiz', quizId })
+    });
+    const data = await res.json();
+    if (!data.success) { showToast('エラー: ' + data.error); return; }
+    showToast('削除しました');
+    renderGradeTab();
+  } catch (e) { showToast('エラー: ' + e.message); }
+}
+window.deleteQuiz = deleteQuiz;
 
 
 
