@@ -1355,11 +1355,16 @@ function buildQuiz() {
 
   if (!selected.length) { showToast('出題数を指定してください'); return; }
 
+  // 問題集の名前を入力
+  const quizName = prompt('問題集の名前を入力してください\n（例: 2026年度第1回_薬剤師）', `効果試験_${new Date().toLocaleDateString('ja-JP').replace(/\//g, '')}`);
+  if (!quizName) { showToast('作成をキャンセルしました'); return; }
+  const safeName = quizName.replace(/[^a-zA-Z0-9\u3000-\u9fff\u30A0-\u30FFぁ-ん_\-]/g, '_');
+
   // Shuffle all
   finalQuiz = selected.sort(() => Math.random() - 0.5);
 
   // Generate quiz ID and save to localStorage for grading
-  const quizId = `quiz_${Date.now()}`;
+  const quizId = `${safeName}_${Date.now()}`;
   finalQuiz._quizId = quizId;
   finalQuiz._roleThemes = roleThemeNames;
   const savedQuizzes = JSON.parse(localStorage.getItem('saved_quizzes') || '{}');
@@ -1694,10 +1699,12 @@ function renderGradeTab() {
       const quizzes = data.quizzes.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
       list.innerHTML = quizzes.map(q => {
         const date = q.createdAt ? new Date(q.createdAt).toLocaleString('ja-JP') : '不明';
+        // quiz IDから名前部分を抽出（末尾の _タイムスタンプ を除去）
+        const displayName = q.quizId.replace(/_\d{13}$/, '').replace(/^quiz_/, '') || q.quizId;
         return `<div class="pool-card">
           <div class="pool-card-info">
-            <div class="pool-card-theme" style="font-size:var(--text-sm)">${esc(q.quizId)}</div>
-            <div class="pool-card-count">${q.totalQuestions}問 | ${date}</div>
+            <div class="pool-card-theme" style="font-size:var(--text-sm)">${esc(displayName)}</div>
+            <div class="pool-card-count">${q.totalQuestions}問 | ${date} <span style="font-size:var(--text-xs);color:var(--color-text-sub);">${esc(q.quizId)}</span></div>
           </div>
           <div class="pool-card-actions">
             <button class="btn btn-sm btn-primary" onclick="gradeAllFromGas('${q.quizId}')">一括採点</button>
