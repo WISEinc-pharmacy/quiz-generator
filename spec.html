@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>効果試験ジェネレーター 仕様書 | ワイズグループ</title>
+  <style>
+    :root{--c-pri:#2563EB;--c-bg:#f8fafc;--c-surface:#fff;--c-text:#1E293B;--c-sub:#64748B;--c-border:#E2E8F0;--c-success:#16a34a;--c-danger:#dc2626;--r:10px}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Hiragino Kaku Gothic ProN','Yu Gothic','Noto Sans JP',sans-serif;background:var(--c-bg);color:var(--c-text);line-height:1.8;padding:24px;max-width:960px;margin:0 auto}
+    h1{font-size:1.5rem;color:var(--c-pri);margin-bottom:8px}
+    .meta{font-size:.85rem;color:var(--c-sub);margin-bottom:24px}
+    h2{font-size:1.2rem;color:var(--c-pri);margin:32px 0 12px;padding-bottom:6px;border-bottom:2px solid var(--c-pri)}
+    h3{font-size:1rem;font-weight:700;margin:20px 0 8px}
+    p,li{font-size:.9rem}
+    ul,ol{padding-left:1.5em;margin-bottom:12px}
+    li{margin-bottom:4px}
+    table{width:100%;border-collapse:collapse;margin:12px 0;font-size:.85rem}
+    th,td{border:1px solid var(--c-border);padding:8px 10px;text-align:left;vertical-align:top}
+    th{background:#e8f0fe;font-weight:700;white-space:nowrap}
+    code{background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:.85rem;font-family:'Consolas','Menlo',monospace}
+    pre{background:#f1f5f9;padding:12px;border-radius:var(--r);overflow-x:auto;font-size:.8rem;margin:8px 0;line-height:1.5}
+    .card{background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--r);padding:20px;margin-bottom:16px}
+    .badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:.75rem;font-weight:700;color:#fff}
+    .badge-green{background:var(--c-success)}
+    .badge-red{background:var(--c-danger)}
+    .badge-blue{background:var(--c-pri)}
+    .toc{background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--r);padding:16px 24px;margin-bottom:24px}
+    .toc a{text-decoration:none;color:var(--c-pri);font-size:.9rem}
+    .toc a:hover{text-decoration:underline}
+    .toc ol{margin-bottom:0}
+    @media print{body{padding:12px;font-size:10pt}h1{font-size:14pt}h2{font-size:12pt;break-after:avoid}table{font-size:8pt}.toc{break-after:page}}
+  </style>
+</head>
+<body>
+
+<h1>効果試験ジェネレーター 仕様書</h1>
+<p class="meta">ワイズグループ | 最終更新: 2026-06-15</p>
+
+<div class="toc">
+  <strong>目次</strong>
+  <ol>
+    <li><a href="#overview">概要</a></li>
+    <li><a href="#architecture">システム構成</a></li>
+    <li><a href="#tab-pool">問題プール</a></li>
+    <li><a href="#tab-build">問題集作成</a></li>
+    <li><a href="#tab-grade">採点</a></li>
+    <li><a href="#settings">設定メニュー</a></li>
+    <li><a href="#quiz-html">配布ページ（quiz.html）</a></li>
+    <li><a href="#gas-api">GAS APIリファレンス</a></li>
+    <li><a href="#data">データ構造</a></li>
+    <li><a href="#grading-logic">合格基準・採点ロジック</a></li>
+    <li><a href="#security">セキュリティ</a></li>
+    <li><a href="#urls">URL・ID一覧</a></li>
+  </ol>
+</div>
+
+<!-- ===== 1. 概要 ===== -->
+<h2 id="overview">1. 概要</h2>
+<div class="card">
+  <p>調剤薬局スタッフ向け効果試験（理解度テスト）の問題作成・配布・採点を一気通貫で行うWebツール。</p>
+  <h3>全体フロー</h3>
+  <ol>
+    <li><strong>問題プール作成</strong> — PDF/CSV/Excel読み込み → AI問題生成 or 既存問題インポート</li>
+    <li><strong>問題集作成</strong> — テーマ別出題数指定 → シャッフル → 配布URLコピー</li>
+    <li><strong>スタッフが回答</strong> — quiz.html にGoogleログイン → 回答送信（GAS経由でDrive保存）</li>
+    <li><strong>一括採点</strong> — 管理者が採点ボタン → 正解キーと自動照合 → 合否判定</li>
+  </ol>
+  <h3>テーマ4本柱</h3>
+  <ol>
+    <li>調剤報酬（改定通知PDF）</li>
+    <li>会社理念・方針（社内資料）</li>
+    <li>アカデミック（学術教材）</li>
+    <li>経営・事業戦略</li>
+  </ol>
+</div>
+
+<!-- ===== 2. システム構成 ===== -->
+<h2 id="architecture">2. システム構成</h2>
+<div class="card">
+  <table>
+    <tr><th>コンポーネント</th><th>技術</th><th>役割</th></tr>
+    <tr><td>管理者ツール</td><td>index.html（GitHub Pages）</td><td>問題プール・問題集作成・採点</td></tr>
+    <tr><td>配布ページ</td><td>quiz.html（GitHub Pages）</td><td>スタッフ回答用（Firebase Auth）</td></tr>
+    <tr><td>バックエンド</td><td>Google Apps Script</td><td>回答受付・正解保存・採点・AI APIプロキシ</td></tr>
+    <tr><td>データ保存</td><td>Google Drive</td><td>回答JSON・正解キー・問題プール</td></tr>
+    <tr><td>認証</td><td>Firebase Auth（Google）</td><td>スタッフのなりすまし防止</td></tr>
+    <tr><td>AI</td><td>Anthropic Claude API</td><td>問題自動生成（GASプロキシ経由）</td></tr>
+    <tr><td>PDF読取</td><td>pdf.js（CDN）</td><td>PDFテキスト抽出</td></tr>
+    <tr><td>ローカル保存</td><td>localStorage</td><td>問題プール・問題集のブラウザキャッシュ</td></tr>
+  </table>
+</div>
+
+<!-- ===== 3. 問題プール ===== -->
+<h2 id="tab-pool">3. 問題プール</h2>
+
+<h3>3.1 テーマ選択</h3>
+<div class="card">
+  <p>デフォルトテーマ: 調剤報酬 / 会社理念・方針 / アカデミック / 在宅医療 / 経営・事業戦略 / 危機管理</p>
+  <p>カスタムテーマも自由入力で追加可能。</p>
+</div>
+
+<h3>3.2 ファイル読み込み</h3>
+<div class="card">
+  <table>
+    <tr><th>対応形式</th><th>説明</th></tr>
+    <tr><td>PDF</td><td>pdf.jsでテキスト抽出。ページ範囲指定可。</td></tr>
+    <tr><td>TXT / CSV</td><td>テキストとして読み込み</td></tr>
+    <tr><td>Excel（.xlsx/.xls）</td><td>SheetJS（CDN）で読み込み</td></tr>
+    <tr><td>Google Sheets</td><td>共有URLから直接読み込み（閲覧権限必須）</td></tr>
+  </table>
+  <p>複数ファイル同時選択可。テキストは結合されて表示。</p>
+</div>
+
+<h3>3.3 AI問題生成</h3>
+<div class="card">
+  <p><strong>ボタン</strong>: 「AIで問題を生成」 → GASプロキシ経由でClaude API呼び出し</p>
+  <table>
+    <tr><th>パラメータ</th><th>選択肢</th></tr>
+    <tr><td>問題数</td><td>5 / 10 / 15 / 20 / 30問</td></tr>
+    <tr><td>選択肢数</td><td>3 / 4 / 5 / 6択</td></tr>
+    <tr><td>難易度</td><td>基礎 / 標準 / 応用</td></tr>
+    <tr><td>対象</td><td>薬剤師 / 一般職 / 全職種</td></tr>
+    <tr><td>カスタム指示</td><td>自由入力</td></tr>
+  </table>
+  <p>費用目安: 10問あたり約$0.01〜0.02（Anthropic API）</p>
+</div>
+
+<h3>3.4 既存問題インポート</h3>
+<div class="card">
+  <p><strong>ボタン</strong>: 「既存問題をそのままインポート」（API不使用・無料）</p>
+  <p>スプレッドシートからコピペした問題を自動パース。タブ区切り・パイプ区切り・CSV対応。</p>
+</div>
+
+<h3>3.5 プール管理</h3>
+<div class="card">
+  <table>
+    <tr><th>操作</th><th>説明</th></tr>
+    <tr><td>展開/折畳み</td><td>テーマごとにクリックで問題一覧を展開</td></tr>
+    <tr><td>個別編集</td><td>問題文・選択肢・正解番号・解説をモーダルで修正</td></tr>
+    <tr><td>個別削除</td><td>問題単位で削除</td></tr>
+    <tr><td>テーマ全削除</td><td>テーマごと全問削除</td></tr>
+    <tr><td>Driveに保存</td><td>テーマ選択 → 備考（8字以内） → Drive保存</td></tr>
+    <tr><td>Driveから読み込む</td><td>ファイル一覧選択 → テーマ選択 → 上書き or マージ</td></tr>
+    <tr><td>すべての問題をPDF</td><td>全テーマのレビュー用PDF出力（修正チェック欄付き）</td></tr>
+    <tr><td>テーマ別レビューPDF</td><td>各テーマカードから個別PDF出力</td></tr>
+  </table>
+</div>
+
+<h3>3.6 Drive保存の仕様</h3>
+<div class="card">
+  <ul>
+    <li><strong>ファイル名</strong>: <code>YYYYMMDD_テーマ1_テーマ2_NNq_備考.json</code></li>
+    <li><strong>保存先</strong>: Drive固定フォルダ（ID: <code>1JFZ3tA9l9JKUzkU-MPD7kbDjakOljac4</code>）</li>
+    <li><strong>備考</strong>: 8文字以内。ファイル名とJSON内に保存。読み込み一覧でバッジ表示。</li>
+    <li><strong>テーマ選択</strong>: チェックボックスで保存対象を選択。チェックしたテーマは1ファイルにまとめて保存。</li>
+    <li><strong>読み込みモード</strong>: 上書き（既存プール消去） or マージ（既存に追加）</li>
+  </ul>
+</div>
+
+<!-- ===== 4. 問題集作成 ===== -->
+<h2 id="tab-build">4. 問題集作成</h2>
+
+<h3>4.1 テーマ別出題数</h3>
+<div class="card">
+  <p>プールの各テーマから何問出すか数値入力。問題は全体でシャッフル。</p>
+  <p><strong>職能テーマ指定</strong>: チップで「職能」に切り替え可。デフォルト職能: アカデミック。</p>
+</div>
+
+<h3>4.2 問題集名</h3>
+<div class="card">
+  <p>作成時にダイアログで名前入力。</p>
+  <ul>
+    <li><strong>デフォルト</strong>: <code>効果試験_YYYYMMDD_HHmm</code></li>
+    <li><strong>quizId</strong>: <code>入力名_タイムスタンプ13桁</code></li>
+    <li>採点タブでは名前部分のみ大きく表示、IDは小さく併記</li>
+  </ul>
+</div>
+
+<h3>4.3 配布</h3>
+<div class="card">
+  <p><strong>配布URL</strong>: <code>https://wiseinc-pharmacy.github.io/quiz-generator/quiz.html?id={quizId}</code></p>
+  <p>「配布URLをコピー」ボタンでクリップボードにコピー。スタッフにメール等で送付。</p>
+</div>
+
+<h3>4.4 問題集作成時の処理</h3>
+<div class="card">
+  <ol>
+    <li>テーマごとにシャッフル → 全体もシャッフル</li>
+    <li>localStorageに <code>saved_quizzes[quizId]</code> 保存</li>
+    <li>GASに正解キー送信（Drive answer-keys フォルダにJSON保存）</li>
+  </ol>
+</div>
+
+<!-- ===== 5. 採点 ===== -->
+<h2 id="tab-grade">5. 採点</h2>
+
+<h3>5.1 問題集一覧</h3>
+<div class="card">
+  <p>GAS APIから取得（Drive answer-keys フォルダ）。作成日時降順表示。</p>
+  <p>ステータス: <span class="badge badge-green">受付中</span> / <span class="badge badge-red">締切済</span></p>
+</div>
+
+<h3>5.2 一括採点</h3>
+<div class="card">
+  <p>「一括採点」ボタン → GAS <code>action=gradeAll</code> 呼び出し → 全回答を正解キーと照合</p>
+  <p>結果テーブル: 氏名 / メール / 提出日時 / 正解数 / 正答率 / 共通 / 職能 / 判定 / 不合格理由</p>
+</div>
+
+<h3>5.3 問題集の管理</h3>
+<div class="card">
+  <table>
+    <tr><th>操作</th><th>効果</th><th>スタッフ側への影響</th></tr>
+    <tr><td><strong>締切</strong></td><td>closedフラグをON。正解データは残る。</td><td>quiz.htmlに「締め切られています」と表示。回答不可。</td></tr>
+    <tr><td><strong>再開</strong></td><td>closedフラグをOFF。</td><td>再び回答可能になる。</td></tr>
+    <tr><td><strong>削除</strong></td><td>正解キーをDriveゴミ箱へ移動。回答データは残る。</td><td>quiz.htmlに「Quiz not found」と表示。</td></tr>
+  </table>
+  <p>※ Driveゴミ箱は30日間保持。その間は復元可能。</p>
+</div>
+
+<h3>5.4 採点結果の出力</h3>
+<div class="card">
+  <ul>
+    <li><strong>結果をコピー</strong>: TSV形式でクリップボードへ（スプシ貼付用）</li>
+    <li><strong>採点結果PDF出力</strong>: 結果テーブルをPDF印刷</li>
+    <li><strong>採点用紙印刷</strong>（設定メニュー内）: 正解一覧 + 回答記入欄 + 集計欄（手採点用）</li>
+  </ul>
+</div>
+
+<!-- ===== 6. 設定メニュー ===== -->
+<h2 id="settings">6. 設定メニュー</h2>
+<div class="card">
+  <p>タブバー右端の「⚙ 設定」ボタンからアクセス。</p>
+  <table>
+    <tr><th>カテゴリ</th><th>項目</th><th>説明</th></tr>
+    <tr><td rowspan="3">問題プール</td><td>保管場所を開く</td><td>DriveのプールフォルダをブラウザCORS回避で開く</td></tr>
+    <tr><td>JSON保存（ローカル）</td><td>プールをJSONファイルとしてダウンロード</td></tr>
+    <tr><td>JSONから復元（ローカル）</td><td>JSONファイルからプールを復元</td></tr>
+    <tr><td rowspan="4">問題集作成</td><td>問題PDF出力</td><td>問題のみ（正解なし）のPDF</td></tr>
+    <tr><td>問題+正解PDF出力</td><td>正解付きPDF（管理者用）</td></tr>
+    <tr><td>スプシ用コピー</td><td>TSV形式でクリップボードへ</td></tr>
+    <tr><td>JSONコピー</td><td>問題集JSONをクリップボードへ</td></tr>
+    <tr><td>採点</td><td>採点用紙を印刷</td><td>手採点用の正解一覧+記入欄PDF</td></tr>
+  </table>
+</div>
+
+<!-- ===== 7. 配布ページ ===== -->
+<h2 id="quiz-html">7. 配布ページ（quiz.html）</h2>
+<div class="card">
+  <h3>認証フロー</h3>
+  <ol>
+    <li>ページ読み込み → Firebase Auth初期化</li>
+    <li>Googleログイン（社内アカウント限定）</li>
+    <li>ログイン済みユーザーのメールアドレスを表示</li>
+  </ol>
+
+  <h3>回答フロー</h3>
+  <ol>
+    <li>GAS <code>action=getQuizQuestions</code> で問題取得（正解・解説は含まない）</li>
+    <li>氏名・所属店舗を入力（必須）</li>
+    <li>各問題の選択肢をクリックして回答</li>
+    <li>「送信」→ 確認ダイアログ（未回答数を警告）→ GASへ送信</li>
+  </ol>
+
+  <h3>制約</h3>
+  <ul>
+    <li><strong>1人1回</strong>: 同一quizId + emailで重複チェック（二重送信防止）</li>
+    <li><strong>締切チェック</strong>: closedフラグONの問題集は回答不可</li>
+    <li><strong>ログイン必須</strong>: Firebase Auth未認証では回答できない</li>
+  </ul>
+</div>
+
+<!-- ===== 8. GAS API ===== -->
+<h2 id="gas-api">8. GAS APIリファレンス</h2>
+
+<h3>8.1 POSTエンドポイント</h3>
+<div class="card">
+  <table>
+    <tr><th>action</th><th>パラメータ</th><th>レスポンス</th><th>用途</th></tr>
+    <tr><td><code>submitAnswer</code></td><td>quizId, name, store, answers, idToken</td><td>{success, email}</td><td>回答送信</td></tr>
+    <tr><td><code>saveAnswerKey</code></td><td>quizId, questions[]</td><td>{success}</td><td>正解キー保存</td></tr>
+    <tr><td><code>generateQuiz</code></td><td>prompt, model?, max_tokens?, token?</td><td>{success, content}</td><td>Claude APIプロキシ</td></tr>
+    <tr><td><code>savePool</code></td><td>pool{}, note?, createdAt?</td><td>{success, fileName}</td><td>プール保存</td></tr>
+    <tr><td><code>closeQuiz</code></td><td>quizId</td><td>{success, closed}</td><td>締切/再開トグル</td></tr>
+    <tr><td><code>deleteQuiz</code></td><td>quizId</td><td>{success}</td><td>問題集削除</td></tr>
+  </table>
+</div>
+
+<h3>8.2 GETエンドポイント</h3>
+<div class="card">
+  <table>
+    <tr><th>action</th><th>パラメータ</th><th>レスポンス</th><th>用途</th></tr>
+    <tr><td><code>checkAuth</code></td><td>-</td><td>{success, email}</td><td>認証確認</td></tr>
+    <tr><td><code>listAnswers</code></td><td>quizId?</td><td>{success, answers[]}</td><td>回答一覧</td></tr>
+    <tr><td><code>gradeAll</code></td><td>quizId</td><td>{success, results[]}</td><td>一括採点</td></tr>
+    <tr><td><code>listQuizIds</code></td><td>-</td><td>{success, quizzes[]}</td><td>問題集一覧</td></tr>
+    <tr><td><code>loadPool</code></td><td>fileName?</td><td>{success, pool}</td><td>プール読込</td></tr>
+    <tr><td><code>listPools</code></td><td>-</td><td>{success, pools[]}</td><td>プール一覧</td></tr>
+    <tr><td><code>getPoolFolderUrl</code></td><td>-</td><td>{success, url}</td><td>DriveフォルダURL</td></tr>
+    <tr><td><code>getQuizQuestions</code></td><td>quizId</td><td>{success, questions[]}</td><td>配布用問題取得</td></tr>
+  </table>
+</div>
+
+<!-- ===== 9. データ構造 ===== -->
+<h2 id="data">9. データ構造</h2>
+
+<h3>9.1 Driveフォルダ構成</h3>
+<div class="card">
+  <table>
+    <tr><th>フォルダ</th><th>パス</th><th>ファイル名例</th><th>内容</th></tr>
+    <tr><td>正解キー</td><td>/quiz-answers/answer-keys/</td><td><code>{quizId}.json</code></td><td>問題+正解+解説</td></tr>
+    <tr><td>回答</td><td>/quiz-answers/answers/</td><td><code>20260615_山田太郎_柏薬局.json</code></td><td>スタッフの回答データ</td></tr>
+    <tr><td>プール</td><td>固定ID: <code>1JFZ3tA9...</code></td><td><code>20260615_調剤報酬_29q_v2.json</code></td><td>問題プール</td></tr>
+  </table>
+</div>
+
+<h3>9.2 問題JSON構造</h3>
+<div class="card">
+<pre>{
+  "question": "問題文",
+  "choices": ["選択肢1", "選択肢2", "選択肢3", "選択肢4"],
+  "answer": 1,         // 1始まり（選択肢番号）
+  "explanation": "解説文",
+  "category": "調剤報酬",
+  "section": "common"  // GAS用: "common" or "role"
+             "共通"     // UI表示用: "共通" or "職能"
+}</pre>
+</div>
+
+<h3>9.3 正解キーJSON</h3>
+<div class="card">
+<pre>{
+  "quizId": "効果試験_20260615_1430_1718000000000",
+  "createdAt": "2026-06-15T05:30:00.000Z",
+  "createdBy": "admin@wise-jmco.com",
+  "totalQuestions": 40,
+  "closed": false,
+  "questions": [ ... ]
+}</pre>
+</div>
+
+<h3>9.4 回答JSON</h3>
+<div class="card">
+<pre>{
+  "quizId": "効果試験_20260615_1430_1718000000000",
+  "name": "山田 太郎",
+  "store": "柏薬局",
+  "email": "yamada@wise-jmco.com",
+  "submittedAt": "2026-06-15T06:00:00.000Z",
+  "totalQuestions": 40,
+  "answeredCount": 38,
+  "answers": { "0": 1, "1": 3, "2": 2, ... }
+}</pre>
+</div>
+
+<h3>9.5 プールJSON</h3>
+<div class="card">
+<pre>{
+  "createdAt": "2026-06-15T...",
+  "savedAt": "2026-06-15T...",
+  "note": "レビュー済",
+  "pool": {
+    "調剤報酬": [ { question, choices, answer, explanation, category }, ... ],
+    "アカデミック": [ ... ]
+  }
+}</pre>
+</div>
+
+<h3>9.6 localStorage</h3>
+<div class="card">
+  <table>
+    <tr><th>キー</th><th>内容</th></tr>
+    <tr><td><code>quiz_pool</code></td><td>問題プール（テーマ別問題配列）</td></tr>
+    <tr><td><code>saved_quizzes</code></td><td>作成済み問題集（quizId → 問題集データ）</td></tr>
+  </table>
+  <p>※ localStorageはブラウザキャッシュ。Driveが正のデータソース。</p>
+</div>
+
+<!-- ===== 10. 合格基準 ===== -->
+<h2 id="grading-logic">10. 合格基準・採点ロジック</h2>
+<div class="card">
+  <h3>判定条件（すべて満たす必要あり）</h3>
+  <table>
+    <tr><th>条件</th><th>基準</th></tr>
+    <tr><td>全体正答率</td><td>65%以上</td></tr>
+    <tr><td>共通問題正答率</td><td>50%以上（該当する場合）</td></tr>
+    <tr><td>職能問題正答率</td><td>50%以上（該当する場合）</td></tr>
+  </table>
+
+  <h3>配置例</h3>
+  <table>
+    <tr><th>対象</th><th>構成</th><th>合格ライン</th></tr>
+    <tr><td>薬剤師</td><td>共通20問 + アカデミック(職能)20問 = 40問</td><td>全体26問 + 共通10問 + 職能10問</td></tr>
+    <tr><td>一般職</td><td>共通40問 = 40問</td><td>全体26問 + 共通20問</td></tr>
+  </table>
+
+  <h3>不合格理由（表示テキスト）</h3>
+  <ul>
+    <li><code>Overall below 65%</code> — 全体正答率が65%未満</li>
+    <li><code>Common below 50% (x/y)</code> — 共通が50%未満</li>
+    <li><code>Role below 50% (x/y)</code> — 職能が50%未満</li>
+  </ul>
+</div>
+
+<!-- ===== 11. セキュリティ ===== -->
+<h2 id="security">11. セキュリティ</h2>
+<div class="card">
+  <h3>認証</h3>
+  <table>
+    <tr><th>対象</th><th>方式</th><th>用途</th></tr>
+    <tr><td>quiz.html（スタッフ）</td><td>Firebase Auth（Google）</td><td>なりすまし防止 + 重複回答チェック</td></tr>
+    <tr><td>GAS generateQuiz</td><td>QUIZ_API_TOKEN</td><td>API不正利用防止</td></tr>
+    <tr><td>GAS submitAnswer</td><td>Firebase IDトークン検証</td><td>メールアドレス確認</td></tr>
+  </table>
+
+  <h3>APIキー管理</h3>
+  <table>
+    <tr><th>キー</th><th>保管場所</th><th>用途</th></tr>
+    <tr><td>ANTHROPIC_API_KEY</td><td>GAS Script Properties</td><td>Claude API呼び出し</td></tr>
+    <tr><td>FIREBASE_API_KEY</td><td>GAS Script Properties</td><td>IDトークン検証</td></tr>
+    <tr><td>QUIZ_API_TOKEN</td><td>GAS Script Properties</td><td>generateQuiz認可</td></tr>
+  </table>
+
+  <h3>データ保護</h3>
+  <ul>
+    <li>quiz.htmlには正解・解説を送信しない（問題と選択肢のみ）</li>
+    <li>APIキーはブラウザに露出しない（GASプロキシ経由）</li>
+    <li>gas/ディレクトリは.gitignoreで除外</li>
+  </ul>
+</div>
+
+<!-- ===== 12. URL・ID一覧 ===== -->
+<h2 id="urls">12. URL・ID一覧</h2>
+<div class="card">
+  <table>
+    <tr><th>項目</th><th>値</th></tr>
+    <tr><td>管理者ツール</td><td><code>https://wiseinc-pharmacy.github.io/quiz-generator/</code></td></tr>
+    <tr><td>配布ページ</td><td><code>https://wiseinc-pharmacy.github.io/quiz-generator/quiz.html?id={quizId}</code></td></tr>
+    <tr><td>GAS Deploy URL</td><td><code>https://script.google.com/macros/s/AKfycbw...ZQ/exec</code></td></tr>
+    <tr><td>プールフォルダ（Drive）</td><td><code>1JFZ3tA9l9JKUzkU-MPD7kbDjakOljac4</code></td></tr>
+    <tr><td>GitHubリポジトリ</td><td><code>WISEinc-pharmacy/quiz-generator</code></td></tr>
+    <tr><td>Firebase Project</td><td><code>wise-budget-26d4c</code></td></tr>
+  </table>
+</div>
+
+</body>
+</html>
