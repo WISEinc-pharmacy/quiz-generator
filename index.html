@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>効果試験ジェネレーター | ワイズグループ</title>
+  <title>考課試験ジェネレーター | ワイズグループ</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs" type="module"></script>
   <style>
     :root {
@@ -105,7 +105,7 @@
 
 <div class="sticky-top">
 <header class="header">
-  <h1>効果試験ジェネレーター</h1>
+  <h1>考課試験ジェネレーター</h1>
   <span style="font-size:var(--text-xs);color:var(--color-text-sub)">管理者用</span>
 </header>
 
@@ -820,7 +820,7 @@ async function generateToPool() {
   const target = { pharmacist:'薬剤師', general:'一般職', all:'全職種' }[document.getElementById('targetRole').value];
   const custom = document.getElementById('customPrompt').value.trim();
 
-  const prompt = `あなたは調剤薬局の教育担当です。以下のテキスト資料に基づいて、効果試験用の選択式問題を作成してください。
+  const prompt = `あなたは調剤薬局の教育担当です。以下のテキスト資料に基づいて、考課試験用の選択式問題を作成してください。
 
 【条件】
 - テーマ: ${theme}
@@ -1360,7 +1360,7 @@ function buildQuiz() {
 
   // 問題集の名前を入力
   const now = new Date();
-  const defaultName = `効果試験_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+  const defaultName = `考課試験_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
   const quizName = prompt('問題集の名前を入力してください\n（例: 2026年度_薬剤師_本番、テスト用 など自由に）', defaultName);
   if (!quizName) { showToast('作成をキャンセルしました'); return; }
   const safeName = quizName.replace(/[^a-zA-Z0-9\u3000-\u9fff\u30A0-\u30FFぁ-ん_\-]/g, '_');
@@ -1485,7 +1485,7 @@ th{background:#f0f4ff;font-weight:600}
 function printQuiz() {
   if (!finalQuiz) return;
   const today = new Date().toLocaleDateString('ja-JP');
-  let html = `<h1>効果試験</h1><p class="meta">実施日: ${today} | ワイズグループ | ${finalQuiz.length}問</p>`;
+  let html = `<h1>考課試験</h1><p class="meta">実施日: ${today} | ワイズグループ | ${finalQuiz.length}問</p>`;
   html += `<p style="margin-bottom:16px;font-size:10pt">氏名: ＿＿＿＿＿＿＿＿　所属: ＿＿＿＿＿＿＿＿</p>`;
   finalQuiz.forEach((q, i) => {
     html += `<div class="q"><div class="q-num">Q${i+1} <span class="q-section">${q.section||''}</span></div>`;
@@ -1493,14 +1493,14 @@ function printQuiz() {
     q.choices.forEach((c, ci) => { html += `<li>${ci+1}. ${esc(c)}</li>`; });
     html += `</ol></div>`;
   });
-  openPrintWindow('効果試験（問題）', html);
+  openPrintWindow('考課試験（問題）', html);
 }
 window.printQuiz = printQuiz;
 
 function printQuizWithAnswers() {
   if (!finalQuiz) return;
   const today = new Date().toLocaleDateString('ja-JP');
-  let html = `<h1>効果試験（正解付き）</h1><p class="meta">作成日: ${today} | ワイズグループ | ${finalQuiz.length}問 | 管理者用</p>`;
+  let html = `<h1>考課試験（正解付き）</h1><p class="meta">作成日: ${today} | ワイズグループ | ${finalQuiz.length}問 | 管理者用</p>`;
   finalQuiz.forEach((q, i) => {
     html += `<div class="q"><div class="q-num">Q${i+1} <span class="q-section">[${q.section||''}] ${esc(q.category)}</span></div>`;
     html += `<div class="q-text">${esc(q.question)}</div><ol class="choices">`;
@@ -1512,7 +1512,7 @@ function printQuizWithAnswers() {
     if (q.explanation) html += `<div class="explanation">解説: ${esc(q.explanation)}</div>`;
     html += `</div>`;
   });
-  openPrintWindow('効果試験（正解付き）', html);
+  openPrintWindow('考課試験（正解付き）', html);
 }
 window.printQuizWithAnswers = printQuizWithAnswers;
 
@@ -1582,7 +1582,7 @@ function downloadTestHtml() {
 
   const html = `<!DOCTYPE html>
 <html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>効果試験 ${today} | ワイズグループ</title>
+<title>考課試験 ${today} | ワイズグループ</title>
 <style>
 :root{--c-pri:#2563EB;--c-bg:#f8fafc;--c-surface:#fff;--c-text:#1E293B;--c-sub:#64748B;--c-border:#E2E8F0;--c-ok:#16a34a;--c-ng:#dc2626;--r-md:10px;--r-lg:16px}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -1602,7 +1602,7 @@ h1{font-size:1.25rem;color:var(--c-pri);margin-bottom:8px}
 .actions{text-align:center;margin:24px 0}
 @media(max-width:768px){body{padding:12px}}
 </style></head><body>
-<h1>効果試験</h1><p class="meta">実施日: ${today} | ワイズグループ</p>
+<h1>考課試験</h1><p class="meta">実施日: ${today} | ワイズグループ</p>
 
 <!-- Quiz area -->
 <div id="mainArea">
@@ -1670,7 +1670,7 @@ init();
   const blob = new Blob([html], { type:'text/html' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `効果試験_${today}.html`;
+  a.download = `考課試験_${today}.html`;
   a.click(); URL.revokeObjectURL(a.href);
   showToast('配布用HTMLをダウンロードしました');
 }
